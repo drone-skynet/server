@@ -8,9 +8,9 @@ from pymavlink.dialects.v20 import common as mavlink2
 from pymavlink import mavutil
 
 # MQTT 브로커 정보
-MQTT_BROKER = '127.0.0.1'
-SUB_TOPIC = 'drone/status'
-PUB_TOPIC = 'drone/commands'
+MQTT_BROKER = 'localhost'
+PUB_TOPIC = '/Mobius/SJ_Skynet/GCS_Data/TestDrone1/sitl'
+SUB_TOPIC = '/Mobius/SJ_Skynet/Drone_Data/TestDrone1/#'#'drone/commands'
 
 # 기본값 설정
 drone_info = {
@@ -42,7 +42,7 @@ def on_message(client, userdata, message):
     topic = message.topic  # 수신된 메시지의 토픽
     payload = message.payload  
 
-    print(f"\nReceived message on topic '{topic}': {payload}\n")
+    #print(f"\nReceived message on topic '{topic}': {payload}\n")
     
     # 각 토픽에 따라 get_drone_status 호출
     get_drone_status(payload)
@@ -53,10 +53,10 @@ def get_drone_status(payload):
     # 바이너리 메시지를 디코딩하여 MAVLink 메시지 객체 생성
     msg = decode_mavlink_message(bytearray(payload))
 
-    print(f"type of msg : {type(msg)}\ndecoded msg : {msg}")
+    # print(f"type of msg : {type(msg)}\ndecoded msg : {msg}")
     # 메시지 유형에 따라 정보 저장
     if isinstance(msg, mavlink2.MAVLink_heartbeat_message):
-        drone_info['drone_id'] = msg.id  # system_id는 heartbeat 메시지에서 직접 접근
+        drone_info['drone_id'] = msg.get_srcSystem()  # system_id는 heartbeat 메시지에서 직접 접근
         drone_info['isArmed'] = (msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED) != 0
         drone_info['isGuided'] = (msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_GUIDED_ENABLED) != 0
 
@@ -64,6 +64,9 @@ def get_drone_status(payload):
         drone_info['latitude'] = msg.lat / 1e7  # 위도
         drone_info['longitude'] = msg.lon / 1e7  # 경도
         drone_info['altitude'] = msg.alt / 1000.0  # 고도
+        drone_info['vx'] = msg.vx / 100.0  # X 방향 속도 (m/s)
+        drone_info['vy'] = msg.vy / 100.0  # Y 방향 속도 (m/s)
+        drone_info['vz'] = msg.vz / 100.0  # Z 방향 속도 (m/s)
 
     elif isinstance(msg, mavlink2.MAVLink_battery_status_message):
         drone_info['battery_status'] = msg.battery_remaining
@@ -71,9 +74,9 @@ def get_drone_status(payload):
     elif isinstance(msg, mavlink2.MAVLink_mission_current_message):
         drone_info['mission_status'] = msg.seq  # 현재 미션 시퀀스
 
-    print(f"All drone_info init check : \n")
-    for value in drone_info.values():
-        print(f"{value}  ")
+    # print(f"All drone_info init check : \n")
+    # for value in drone_info.values():
+    #     print(f"{value}  ")
 
     # 모든 정보가 수집된 경우에만 드론 객체 생성
     if all(value is not None for value in drone_info.values()):
@@ -84,12 +87,15 @@ def get_drone_status(payload):
             drone_info['latitude'],
             drone_info['longitude'],
             drone_info['altitude'],
+            drone_info['vx'],
+            drone_info['vy'],
+            drone_info['vz'],
             drone_info['battery_status'],
             drone_info['mission_status']
         )
-        print(f"\nCall update_drone\n")
+        # print(f"\nCall update_drone\n")
         drone.update_drone_status(drone_obj)
-                
+        
         # 드론 정보 초기화
         reset_drone_info()
 
@@ -149,15 +155,22 @@ def publish_control_command(command_data):
 
 
     if command == "SET_MODE":
-        # SET MODE 명령
-        mode = command_data.get("mode")
+        # SET_MODE 명령 (GUIDED 또는 MANUAL 모드 전환)
         sys_id = command_data.get("sys_id")
-        mode_id = mavutil.mavlink.MAV_MODE_GUIDED_ARMED if mode == "GUIDED" else mavutil.mavlink.MAV_MODE_MANUAL_ARMED
+        comp_id = command_data.get("comp_id")
+        mode = command_data.get("mode")
+        if(mode == "GUIDED") :
+            custom_mode = 4   # GUIDED 모드: custom_mode=4, MANUAL 모드: custom_mode=0
+        
+        elif(mode == "BREAK") :
+            custom_mode = 17
+            
+        base_mode = mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED  # custom_mode 사용 플래그 설정
 
-        mav_msg = mavlink2.MAVLink(None).set_mode_encode(
-            target_system = sys_id,  # 대상 시스템 ID
-            base_mode = mode_id,
-            custom_mode = 0
+        mav_msg = mavlink2.MAVLink_set_mode_message(
+            target_system=sys_id,
+            base_mode=base_mode,
+            custom_mode=custom_mode
         )
 
 
@@ -227,7 +240,7 @@ def publish_control_command(command_data):
     print(f"\nmav_msg : \n{mav_msg}")
 
     if mav_msg:
-        mavlink_msg_bytes = mav_msg.pack(mavutil.mavlink.MAVLink('', 2, sys_id))    # 파라미터 : 연결객체, MAVLink Version, system_id
+        mavlink_msg_bytes = mav_msg.pack(mavutil.mavlink.MAVLink('', 255, 190))    # 파라미터 : 연결객체, MAVLink Version, system_id
         client.publish(PUB_TOPIC, mavlink_msg_bytes)
 
         # # 비트 문자열 변환

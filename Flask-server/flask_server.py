@@ -7,6 +7,7 @@ import threading
 import mqtt_client, weather_api
 from dotenv import load_dotenv
 import os
+from path_planning import *
 
 load_dotenv()
 
@@ -29,9 +30,10 @@ def pathfinding():
     dname = request.form['dname']
 
     # 경로 계산 로직
-    route = f"출발지 : {sname}, 목적지 : {dname}의 경로 계산 완료!"
-    print(route)
-
+    
+    routes.append(search_route(get_station_by_name(sname), get_station_by_name(dname)))
+    print(f"출발지 : {sname}, 목적지 : {dname}의 경로 계산 완료!")
+    print(routes)
 
     # 경로 전달
 
@@ -96,12 +98,14 @@ def test_publish():
 def run_flask():
     app.run(host='127.0.0.1', port=5000)
     
+    
 
 if __name__ == '__main__':
     # MQTT 클라이언트를 별도의 스레드에서 실행
     mqtt_thread = threading.Thread(target=mqtt_client.start_mqtt_client)
     mqtt_thread.start()
-
+    # 경로 탐색 모듈 초기화
+    initialize_path_planning_module()
     # Flask 서버 실행
     try:
         run_flask()
