@@ -1,4 +1,5 @@
 from utils import haversine, find_edge_by_point
+from edge import edges
 import time
 import mqtt_client
 
@@ -18,7 +19,7 @@ def update_drone_status(drone):
         "battery": drone.battery_status,
         "mission_status": drone.mission_status
     }
-    if(drone not in waiting_drones) :
+    if(drone not in waiting_drones and drone not in mission_drones) :
       waiting_drones.append(drone)
       return
     for drone1 in waiting_drones :
@@ -65,12 +66,14 @@ class Drone:
     self.battery_status = battery_status
     self.mission_status = mission_status
     self.destinations = []
- #   self.is_moving = False 속도로 체크
     self.velocity = [vx,vy,vz]
+    #내가 조작을 위해 넣은 것들
     self.take_off_time = None
     self.go_flag = 0
     self.prev_station = None
     self.edge = None
+    self.home_alt = None
+    self.is_operating = False
   
   def is_moving(self):
     if abs(self.velocity[0]) < 0.05 and abs(self.velocity[1]) < 0.05 and abs(self.velocity[2]) < 0.05 :
@@ -90,7 +93,7 @@ class Drone:
   def add_to_next_edge(self):
     if len(self.destinations) < 2:
       return None
-    next_edge = find_edge_by_point(Drone.edges, self.destinations[0], self.destinations[1]) 
+    next_edge = find_edge_by_point(edges, self.destinations[0], self.destinations[1]) 
     if(self not in next_edge.drones_on_the_edge) :
       next_edge.drones_on_the_edge.append(self)
       print("다음 간선에 미리 추가", self.id)
@@ -130,6 +133,8 @@ class Drone:
     return find_edge_by_point(self.destination[0], self.destination[1])
   
   def take_off(self):
+    self.is_operating = True
+    self.home_alt = self.altitude
     self.add_to_next_edge()    
     self.prev_station = self.destinations[0]
     self.destinations.pop(0)
@@ -153,7 +158,7 @@ class Drone:
       "comp_id": 1 
     }
     mqtt_client.publish_control_command(command)
-    self.is_armed = True
+    
     time.sleep(2)
 
     # 이륙
@@ -161,12 +166,14 @@ class Drone:
       "command": "TAKEOFF",
       "sys_id": self.id,
       "comp_id": 1,
-      "altitude": 30#90
+      "altitude": 90-self.home_alt
     }
     mqtt_client.publish_control_command(command)
 
-    self.take_off_time = time.time()
+    time.sleep(10)
 
+    self.take_off_time = time.time()
+    self.is_operating = False
     print("드론", self.id, "이륙")
     
   
@@ -179,13 +186,12 @@ class Drone:
     command = {
       "command": "LAND",
       "sys_id": self.id,
-      "comp_id": 190
+      "comp_id": 1
     }
     mqtt_client.publish_control_command(command)
 
     self.take_off_time = None
     self.edge = None
-    self.is_armed = False
 
     print("드론", self.id, "착륙")
     return

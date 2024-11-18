@@ -1,5 +1,7 @@
 from utils import haversine
 
+edges=[]
+
 class Edge:
   def __init__(self, origin, destination):
     self.origin = origin
