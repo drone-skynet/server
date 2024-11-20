@@ -8,6 +8,7 @@ class Edge:
     self.destination = destination
     self.weight = haversine([origin.latitude, origin.longitude], [destination.latitude, destination.longitude])
     self.drones_on_the_edge = []
+    self.intersection = None
   def __repr__(self):
     return (f"edge(origin={self.origin.name}, destination={self.destination.name}, "
             f"weight={self.weight})")

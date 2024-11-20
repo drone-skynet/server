@@ -7,6 +7,7 @@ class Station:
     self.longitude = float(longitude)
     self.latitude = float(latitude)
     self.capacity = capacity
+    self.intersection = None
 
   def __repr__(self):
     return self.name

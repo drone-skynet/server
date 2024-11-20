@@ -2,6 +2,7 @@ import mysql.connector
 from station import Station, stations
 from edge import Edge, edges
 from drone import mission_drones, waiting_drones
+from intersection import intersections
 from utils import haversine
 from intersection_finding import find_all_intersections
 from collision_check import check_all_collision
@@ -124,13 +125,27 @@ def get_station_by_name(name) :
             return station
     return None
     
-
+def attach_intersections_to_stations() :
+    for intersection in intersections:
+        for station in stations:
+            distance = haversine([station.latitude, station.longitude], [intersection.latitude, intersection.longitude])
+            if(distance < 0.005) : #역과의 거리가 5m 이내면 그냥 역 교점
+                intersection.is_station = True
+                station.intersection = intersection
+        
+def check_un_attached_station() :
+    for station in stations:
+        if(station.intersection is None) :
+            print(station.name)            
     
 
 def initialize_path_planning_module() :
     get_stations_from_db()
     get_edges_by_stations()
-    find_all_intersections()
+    #find_all_intersections()
+    #attach_intersections_to_stations()
+    #check_un_attached_station()
+
     print("간선 수:",len(edges))
     
     # intersections = find_all_intersections(edges)    
@@ -140,7 +155,11 @@ def initialize_path_planning_module() :
     giving_or_revoking_mission_thread.start()
     controling_drone_thread = threading.Thread(target=control_drone_thread)
     controling_drone_thread.start()
+    
+    time.sleep(2)
 
+    print(f"waiting_drones : {waiting_drones}")
+    print(f"mission_drones : {mission_drones}")
     print("초기화 끝")
 
 
@@ -152,24 +171,31 @@ def give_or_revoke_mission_to_drone_thread():
             for route_idx, route in enumerate(reversed(routes)):
                 start_station = route[0]
                 distance = haversine([drone.latitude, drone.longitude], [start_station.latitude, start_station.longitude])
+                # print(f"{drone.id}까지의 거리:{distance}")
+                # print(f"{drone.id}의 위치:[{drone.latitude}, {drone.longitude}]")
                 if(distance < 0.002):
                     drone.destinations = route
                     routes.pop(route_idx) # for each 문인데 삽입 삭제를 시행해도 되나?
-                    drone.prev_station = drone.destinations[0]
-                    drone.destinations.pop(0)
                     mission_drones.append(drone)
                     waiting_drones.pop(drone_idx)
-                    print("미션 부여")
+                    print(f"{drone.id}에게 미션 부여")
+                    print(f"waiting_drones : {waiting_drones}")
+                    print(f"mission_drones : {mission_drones}")
+                    break;
+                    
         for drone_idx, drone in enumerate(reversed(mission_drones)):
-            if(len(drone.destinations) == 0 and not drone.is_moving() and not drone.is_armed) :
+            if(len(drone.destinations) == 0 and not drone.is_moving() and not drone.is_armed and not drone.is_guided) :
                 waiting_drones.append(drone)
                 mission_drones.pop(drone_idx)
+                print("다시 대기 드론으로 전환")
+                print(f"waiting_drones : {waiting_drones}")
+                print(f"mission_drones : {mission_drones}")
                     
 def control_drone_thread() :
     while(True) :
         time.sleep(0.3)        
+        check_all_collision()
         for drone in mission_drones:
-            check_all_collision()
             control_a_drone(drone)
 
 def control_a_drone(drone) :
@@ -181,18 +207,21 @@ def control_a_drone(drone) :
         taking_off_thread.start()
         return
     if(drone.is_armed) :
-        if(len(drone.destinations) == 0) :
+        if(len(drone.destinations) == 0 and not drone.is_moving()) :
             print("최종 목적지 도착")
             drone.land()
             return
-        if(drone.remaining_distance() <= 0.1):
+        if(len(drone.destinations) > 0 and drone.remaining_distance() <= 0.001):
             print("목적지 변경")
             drone.stop()
-            drone.prev_station = drone.destinations[0]
-            drone.destinations.pop(0)
+            drone.renew_destination()
+            drone.renew_edge()
             if(len(drone.destinations) == 0) :
                 return
-        if(not drone.is_moving() and time.time() - drone.take_off_time > 10 and drone.go_flag == 1) :
-            drone.move()
-        if(drone.is_moving() and time.time() - drone.take_off_time > 10 and drone.go_flag == 0) :
+        if(not drone.is_moving() and not drone.is_operating and drone.go_flag == 1) :
+            drone_move_thread = threading.Thread(target=drone.move)
+            drone_move_thread.start()
+            return
+        if(drone.is_moving() and not drone.is_operating and drone.go_flag == 0) :
             drone.stop()
+            return

@@ -65,17 +65,10 @@ def check_collision_of_one_intersection(intersection):
         if drone != prior_drone:
           drone.go_flag = 0
       prior_drone.go_flag *= 1
-      if(isStation(intersection) and prior_drone.go_flag == 1) :
+      if(intersection.is_station and prior_drone.go_flag == 1) :
          #통과하는 교점이 역이고, 통행권을 얻은 경우
           prior_drone.add_to_next_edge()
 
-      
-def isStation(intersection) :
-  for station in stations :
-    distance = haversine([station.latitude, station.longitude], [intersection.latitude, intersection.longitude])
-    if(distance < 0.005) : #역과의 거리가 5m 이내면 그냥 역 교점
-      return True
-  return False
 
 def check_collision_of_all_intersections() :
   for intersection in intersections:
@@ -91,7 +84,7 @@ def check_collision_in_edge(edge) :
     if(i>=len(edge.drones_on_the_edge)) :
       break
     distance = find_distance_between_2_drones(edge.drones_on_the_edge[i], edge.drones_on_the_edge[i-1])
-    if distance < 0.02 :
+    if distance < 0.04 :
       edge.drones_on_the_edge[i].go_flag = 0
     else :
       edge.drones_on_the_edge[i].go_flag *= 1
@@ -108,10 +101,4 @@ def check_all_collision() :
       drone.go_flag = 1
   check_collision_in_all_edges()
   #check_collision_of_all_intersections(intersections)
-  for drone in mission_drones :
-    if(drone.is_armed and drone.go_flag==1 and not drone.is_moving) :
-      drone.move()
-      print(drone.id, "드론 재가동")
-    elif(drone.is_armed and drone.go_flag==0 and drone.is_moving) :
-      drone.stop()
   return

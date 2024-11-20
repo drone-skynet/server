@@ -6,43 +6,52 @@ import mqtt_client
 drone_statuses = {}
 waiting_drones = [] 
 mission_drones = []
+the_other_drones = []
 
 #전역 드론 상태 딕셔너리에 드론 상태 업데이트
 def update_drone_status(drone):
+    """
     drone_statuses[drone.id] = {
         "isArmed": drone.is_armed,
         "isGuided": drone.is_guided,
         "latitude": drone.latitude,
         "longitude": drone.longitude,
         "altitude": drone.altitude,
-        "velocity": drone.velocity,
+        "vx": drone.vx,
+        "vy": drone.vy,
+        "vz": drone.vz,
         "battery": drone.battery_status,
         "mission_status": drone.mission_status
     }
+    """
     if(drone not in waiting_drones and drone not in mission_drones) :
       waiting_drones.append(drone)
       return
     for drone1 in waiting_drones :
       if(drone1.id == drone.id) :
-        drone1.is_armed = drone.is_armed
-        drone1.is_guided = drone.is_guided
-        drone1.latitude = drone.latitude
-        drone1.longitude = drone.longitude
-        drone1.altitude = drone.altitude
-        drone1.velocity = drone.velocity
-        drone1.battery_status = drone.battery_status
-        drone1.mission_status = drone.mission_status
+        drone1.is_armed = drone.is_armed if drone.is_armed is not None else drone1.is_armed
+        drone1.is_guided = drone.is_guided if drone.is_guided is not None else drone1.is_guided
+        drone1.latitude = drone.latitude if drone.latitude is not None else drone1.latitude
+        drone1.longitude = drone.longitude if drone.longitude is not None else drone1.longitude 
+        drone1.altitude = drone.altitude if drone.altitude is not None else drone1.altitude
+        drone1.vx = drone.vx if drone.vx is not None else drone1.vx
+        drone1.vy = drone.vy if drone.vy is not None else drone1.vy
+        drone1.vz = drone.vz if drone.vz is not None else drone1.vz
+        drone1.battery_status = drone.battery_status if drone.battery_status is not None else drone1.battery_status
+        drone1.mission_status = drone.mission_status if drone.mission_status is not None else drone1.mission_status
         return
     for drone1 in mission_drones :
       if(drone1.id == drone.id) :
-        drone1.is_armed = drone.is_armed
-        drone1.is_guided = drone.is_guided
-        drone1.latitude = drone.latitude
-        drone1.longitude = drone.longitude
-        drone1.altitude = drone.altitude
-        drone1.velocity = drone.velocity
-        drone1.battery_status = drone.battery_status
-        drone1.mission_status = drone.mission_status
+        drone1.is_armed = drone.is_armed if drone.is_armed is not None else drone1.is_armed
+        drone1.is_guided = drone.is_guided if drone.is_guided is not None else drone1.is_guided
+        drone1.latitude = drone.latitude if drone.latitude is not None else drone1.latitude
+        drone1.longitude = drone.longitude if drone.longitude is not None else drone1.longitude 
+        drone1.altitude = drone.altitude if drone.altitude is not None else drone1.altitude
+        drone1.vx = drone.vx if drone.vx is not None else drone1.vx
+        drone1.vy = drone.vy if drone.vy is not None else drone1.vy
+        drone1.vz = drone.vz if drone.vz is not None else drone1.vz
+        drone1.battery_status = drone.battery_status if drone.battery_status is not None else drone1.battery_status
+        drone1.mission_status = drone.mission_status if drone.mission_status is not None else drone1.mission_status
         return
 
   #현재 드론 상태 정보를 반환
@@ -66,7 +75,9 @@ class Drone:
     self.battery_status = battery_status
     self.mission_status = mission_status
     self.destinations = []
-    self.velocity = [vx,vy,vz]
+    self.vx = vx
+    self.vy = vy
+    self.vz = vz
     #내가 조작을 위해 넣은 것들
     self.take_off_time = None
     self.go_flag = 0
@@ -76,11 +87,15 @@ class Drone:
     self.is_operating = False
   
   def is_moving(self):
-    if abs(self.velocity[0]) < 0.05 and abs(self.velocity[1]) < 0.05 and abs(self.velocity[2]) < 0.05 :
+    if abs(self.vx) < 0.05 and abs(self.vy) < 0.05 and abs(self.vz) < 0.05 :
       return False
     return True
   
-  def __renew_edge(self) :
+  def renew_destination(self) :
+    self.prev_station = self.destinations[0]
+    self.destinations.pop(0)
+  
+  def renew_edge(self) :
     if(self.edge is not None) :
       self.edge.drones_on_the_edge.remove(self)
     if(len(self.destinations) < 1) :
@@ -90,7 +105,7 @@ class Drone:
     print("현재 드론:", self.id, "간선:",self.prev_station.name,"-",self.destinations[0].name)
     return
 
-  def add_to_next_edge(self):
+  def add_to_next_edge(self): # 교점 관리할 때 호출
     if len(self.destinations) < 2:
       return None
     next_edge = find_edge_by_point(edges, self.destinations[0], self.destinations[1]) 
@@ -100,6 +115,7 @@ class Drone:
     return next_edge
     
   def move(self):
+    self.is_operating = True
     command = {
       "command": "SET_MODE",
       "mode": "GUIDED",
@@ -118,6 +134,10 @@ class Drone:
     }
     mqtt_client.publish_control_command(command)
     print("드론", self.id, "이동 시작")
+
+    time.sleep(3)
+
+    self.is_operating = False
     return
   
   def stop(self):
@@ -136,9 +156,8 @@ class Drone:
     self.is_operating = True
     self.home_alt = self.altitude
     self.add_to_next_edge()    
-    self.prev_station = self.destinations[0]
-    self.destinations.pop(0)
-    self.__renew_edge()
+    self.renew_destination()
+    self.renew_edge()
 
     # 드론 GUIDED 모드 설정
     command = {
@@ -192,7 +211,7 @@ class Drone:
 
     self.take_off_time = None
     self.edge = None
-
+    self.renew_edge()
     print("드론", self.id, "착륙")
     return
   
@@ -208,4 +227,4 @@ class Drone:
     return hash(self.id)
   
   def __repr__(self):
-    return f"[drone.id = {self.id}]"
+    return "{"+f"id = {self.id}, is_armed = {self.is_armed}"+"}"

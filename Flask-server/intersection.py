@@ -5,6 +5,8 @@ class Intersection :
     self.edges = edges
     self.latitude = latitude
     self.longitude = longitude
+    self.drone_queue = []
+    self.is_station = False
 
   def __repr__(self):
     return "{Intersection " + str(self.latitude) + ", " + str(self.longitude) + "}"
