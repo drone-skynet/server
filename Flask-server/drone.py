@@ -98,9 +98,10 @@ class Drone:
   def renew_edge(self) :
     if(self.edge is not None) :
       self.edge.drones_on_the_edge.remove(self)
+      self.edge = None
     if(len(self.destinations) < 1) :
       return 
-    edge = self.add_to_next_edge()
+    edge = find_edge_by_point(edges, self.prev_station, self.destinations[0])
     self.edge = edge
     print("현재 드론:", self.id, "간선:",self.prev_station.name,"-",self.destinations[0].name)
     return
@@ -201,7 +202,8 @@ class Drone:
 
   def land(self):
     self.stop()
-
+    print("드론", self.id, "착륙")
+    self.is_operating = True
     command = {
       "command": "LAND",
       "sys_id": self.id,
@@ -211,8 +213,10 @@ class Drone:
 
     self.take_off_time = None
     self.edge = None
-    self.renew_edge()
-    print("드론", self.id, "착륙")
+    time.sleep(15)
+    # self.renew_edge()
+    self.is_operating = False
+
     return
   
   def is_landed(self) :

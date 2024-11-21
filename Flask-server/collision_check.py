@@ -18,6 +18,8 @@ def check_collision_of_one_intersection(intersection):
             # 드론의 현재 위치
             drone_pos = [drone.latitude, drone.longitude]
             # 드론의 다음 목적지 위치
+            if(len(drone.destinations)==0):
+               continue
             next_dest = [drone.destinations[0].latitude, drone.destinations[0].longitude]
             
             # 교점까지의 거리와 다음 목적지까지의 거리 비교
@@ -50,7 +52,7 @@ def check_collision_of_one_intersection(intersection):
     filtered_drones = []
     for drone in leading_drones:
         distance_to_intersection = haversine([drone.latitude, drone.longitude], intersection_pos)
-        if distance_to_intersection < 0.04:
+        if distance_to_intersection < 0.1:
             filtered_drones.append(drone)
     leading_drones = filtered_drones
     # 교점과 가장 가까운 드론 찾기
@@ -58,7 +60,7 @@ def check_collision_of_one_intersection(intersection):
       closest_drone = min(leading_drones, 
                           key=lambda drone: haversine([drone.latitude, drone.longitude], intersection_pos))
       prior_drone = closest_drone
-      if haversine([prior_drone.latitude, prior_drone.longitude], intersection_pos) >= 0.025:
+      if haversine([prior_drone.latitude, prior_drone.longitude], intersection_pos) >= 0.006:
           prior_drone = min(leading_drones, key=lambda drone: drone.take_off_time)
       # 가장 가까운 드론 제외하고 나머지 드론들 정지
       for drone in leading_drones:
@@ -100,5 +102,5 @@ def check_all_collision() :
     if(drone.is_armed) :
       drone.go_flag = 1
   check_collision_in_all_edges()
-  #check_collision_of_all_intersections(intersections)
+  check_collision_of_all_intersections()
   return

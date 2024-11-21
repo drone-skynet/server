@@ -155,7 +155,7 @@ def publish_control_command(command_data):
     command = command_data.get("command")
     mav_msg = None
 
-    print(f"\ncommand : {command}\n")
+    # print(f"\ncommand : {command}\n")
 
 
     if command == "SET_MODE":
@@ -241,7 +241,7 @@ def publish_control_command(command_data):
             param5=0, param6=0, param7=0
         )
 
-    print(f"\nmav_msg : \n{mav_msg}")
+    # print(f"\nmav_msg : \n{mav_msg}")
     pub_topic1 = pub_topic(command_data.get("sys_id"))
     if mav_msg:
         mavlink_msg_bytes = mav_msg.pack(mavutil.mavlink.MAVLink('', 255, 190))    # 파라미터 : 연결객체, MAVLink Version, system_id
@@ -258,7 +258,7 @@ def publish_control_command(command_data):
         # decoded_msg = decode_mavlink_message(bytearray(mavlink_msg_bytes))
         # print("\nDecoded message:", decoded_msg)
 
-        print(f"\nPublished MAVLink command to {pub_topic1}: {mavlink_msg_bytes}")
+        #print(f"\nPublished MAVLink command to {pub_topic1}: {mavlink_msg_bytes}")
     else:
         print(f"\nUnknown command: {command}")
 
