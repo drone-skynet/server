@@ -1,11 +1,16 @@
 class Station:
   stations = []
-  def __init__(self, id, name, longitude, latitude, capacity):
+  def __init__(self, id, name, longitude, latitude, capacity,grid_x,grid_y):
     self.id = id
     self.name = name
     self.longitude = float(longitude)
     self.latitude = float(latitude)
     self.capacity = capacity
+    self.grid_x=grid_x
+    self.grid_y=grid_y
+    self.is_flyable = True  # 비행 가능 여부 기본값
+
+
 
   def __repr__(self):
     return self.name
