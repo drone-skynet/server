@@ -21,3 +21,8 @@ class Station:
   def __hash__(self):
     return hash((self.longitude, self.latitude))
 
+  def check_weather(self):
+    """현재 날씨 상태를 확인하고 비행 가능 여부를 업데이트"""
+    from weather_api import get_station_weather
+    is_raining = get_station_weather(self)  # self를 전달
+    self.is_flyable = not is_raining
