@@ -9,10 +9,14 @@ from pymavlink import mavutil
 
 # MQTT 브로커 정보
 MQTT_BROKER = 'localhost'
-PUB_TOPIC = '/Mobius/SJ_Skynet/GCS_Data/TestDrone1/sitl'
-SUB_TOPIC = '/Mobius/SJ_Skynet/Drone_Data/TestDrone1/#'#'drone/commands'
+# PUB_TOPIC = '/Mobius/SJ_Skynet/GCS_Data/TestDrone1/sitl'
+SUB_TOPIC = '/Mobius/SJ_Skynet/Drone_Data/#'
+
+def pub_topic(sys_id) :
+    return f'/Mobius/SJ_Skynet/GCS_Data/TestDrone{251-int(sys_id)}/sitl'
 
 # 기본값 설정
+"""
 drone_info = {
     'drone_id': None,
     'isArmed': None,
@@ -20,9 +24,13 @@ drone_info = {
     'latitude': None,
     'longitude': None,
     'altitude': None,
+    'vx' : None,
+    'vy' : None,
+    'vz' : None,
     'battery_status': None,
     'mission_status': None
 }
+"""
 
 # MQTT 클라이언트 설정
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
@@ -50,13 +58,25 @@ def on_message(client, userdata, message):
 
 # 수신받은 드론 정보를 저장
 def get_drone_status(payload):
+    drone_info = {
+        'drone_id': None,
+        'isArmed': None,
+        'isGuided': None,
+        'latitude': None,
+        'longitude': None,
+        'altitude': None,
+        'vx' : None,
+        'vy' : None,
+        'vz' : None,
+        'battery_status': None,
+        'mission_status': None
+    }
     # 바이너리 메시지를 디코딩하여 MAVLink 메시지 객체 생성
     msg = decode_mavlink_message(bytearray(payload))
-
     # print(f"type of msg : {type(msg)}\ndecoded msg : {msg}")
     # 메시지 유형에 따라 정보 저장
+    drone_info['drone_id'] = msg.get_srcSystem()
     if isinstance(msg, mavlink2.MAVLink_heartbeat_message):
-        drone_info['drone_id'] = msg.get_srcSystem()  # system_id는 heartbeat 메시지에서 직접 접근
         drone_info['isArmed'] = (msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED) != 0
         drone_info['isGuided'] = (msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_GUIDED_ENABLED) != 0
 
@@ -79,7 +99,7 @@ def get_drone_status(payload):
     #     print(f"{value}  ")
 
     # 모든 정보가 수집된 경우에만 드론 객체 생성
-    if all(value is not None for value in drone_info.values()):
+    if (drone_info['drone_id'] != 0):
         drone_obj = drone.Drone(
             drone_info['drone_id'],
             drone_info['isArmed'],
@@ -95,23 +115,7 @@ def get_drone_status(payload):
         )
         # print(f"\nCall update_drone\n")
         drone.update_drone_status(drone_obj)
-        
         # 드론 정보 초기화
-        reset_drone_info()
-
-
-def reset_drone_info():
-    global drone_info
-    drone_info = {
-        'drone_id': None,
-        'isArmed': None,
-        'isGuided': None,
-        'latitude': None,
-        'longitude': None,
-        'altitude': None,
-        'battery_status': None,
-        'mission_status': None
-    }
 
 
 # MAVLink 메시지 디코딩 함수
@@ -151,7 +155,7 @@ def publish_control_command(command_data):
     command = command_data.get("command")
     mav_msg = None
 
-    print(f"\ncommand : {command}\n")
+    # print(f"\ncommand : {command}\n")
 
 
     if command == "SET_MODE":
@@ -237,11 +241,11 @@ def publish_control_command(command_data):
             param5=0, param6=0, param7=0
         )
 
-    print(f"\nmav_msg : \n{mav_msg}")
-
+    # print(f"\nmav_msg : \n{mav_msg}")
+    pub_topic1 = pub_topic(command_data.get("sys_id"))
     if mav_msg:
         mavlink_msg_bytes = mav_msg.pack(mavutil.mavlink.MAVLink('', 255, 190))    # 파라미터 : 연결객체, MAVLink Version, system_id
-        client.publish(PUB_TOPIC, mavlink_msg_bytes)
+        client.publish(pub_topic1, mavlink_msg_bytes)
 
         # # 비트 문자열 변환
         # mavlink_message_bits = ''.join(format(byte, '08b') for byte in mavlink_msg_bytes)
@@ -254,10 +258,9 @@ def publish_control_command(command_data):
         # decoded_msg = decode_mavlink_message(bytearray(mavlink_msg_bytes))
         # print("\nDecoded message:", decoded_msg)
 
-        print(f"\nPublished MAVLink command to {PUB_TOPIC}: {mavlink_msg_bytes}")
+        #print(f"\nPublished MAVLink command to {pub_topic1}: {mavlink_msg_bytes}")
     else:
         print(f"\nUnknown command: {command}")
-
 
 
 #MQTT 클라이언트를 시작
