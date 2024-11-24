@@ -85,6 +85,7 @@ class Drone:
     self.edge = None
     self.home_alt = None
     self.is_operating = False
+    self.take_off_flag = 0
   
   def is_moving(self):
     if abs(self.vx) < 0.05 and abs(self.vy) < 0.05 and abs(self.vz) < 0.05 :
@@ -148,7 +149,6 @@ class Drone:
       "sys_id": self.id,
     }
     mqtt_client.publish_control_command(command)
-    print("드론",self.id,"강제 멈춤")
 
   def find_next_edge(self):
     return find_edge_by_point(self.destination[0], self.destination[1])
@@ -156,9 +156,15 @@ class Drone:
   def take_off(self):
     self.is_operating = True
     self.home_alt = self.altitude
+    self.take_off_time = time.time()
     self.add_to_next_edge()    
     self.renew_destination()
     self.renew_edge()
+
+    while(self.go_flag == 0) :
+      time.sleep(0.3)
+      print("go_flag 대기 in drone.take_off")
+      print(self.take_off_time)
 
     # 드론 GUIDED 모드 설정
     command = {
@@ -180,7 +186,8 @@ class Drone:
     mqtt_client.publish_control_command(command)
     
     time.sleep(2)
-
+    
+    
     # 이륙
     command = {
       "command": "TAKEOFF",
@@ -189,10 +196,11 @@ class Drone:
       "altitude": 90-self.home_alt
     }
     mqtt_client.publish_control_command(command)
-
-    time.sleep(10)
-
     self.take_off_time = time.time()
+
+    time.sleep(2)
+
+    
     self.is_operating = False
     print("드론", self.id, "이륙")
     
@@ -211,10 +219,14 @@ class Drone:
     }
     mqtt_client.publish_control_command(command)
 
+    time.sleep(5)
+
     self.take_off_time = None
-    self.edge = None
-    time.sleep(15)
-    # self.renew_edge()
+    # self.edge = None
+    tmp_edge = self.edge
+    self.renew_destination()
+    self.renew_edge()
+    print(tmp_edge.drones_on_the_edge)
     self.is_operating = False
 
     return
