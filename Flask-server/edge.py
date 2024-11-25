@@ -3,10 +3,11 @@ from utils import haversine
 edges=[]
 
 class Edge:
-  def __init__(self, origin, destination):
+  def __init__(self, origin, destination, altitude):
     self.origin = origin
     self.destination = destination
     self.weight = haversine([origin.latitude, origin.longitude], [destination.latitude, destination.longitude])
+    self.altitude = altitude
     self.drones_on_the_edge = []
     self.intersection = None
   def __repr__(self):

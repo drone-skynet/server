@@ -67,8 +67,8 @@ def get_edges_by_stations() :
     n = len(stations)
     for i in range(n):
         for j in range(i+1,n):
-            edges.append(Edge(stations[i],stations[j]))
-            edges.append(Edge(stations[j],stations[i]))
+            edges.append(Edge(stations[i], stations[j], 90))
+            edges.append(Edge(stations[j], stations[i], 120))
             if(edges[-1].weight > limitDistance) : 
                 edges.pop()
                 edges.pop()
@@ -87,7 +87,7 @@ def heuristic(n1, n2):
             if (drone.destinations[i].latitude == y1 and drone.destinations[i].longitude == x1 ):
                 count += 1
                 break
-    rslt = haversine([x1,y1], [x2,y2]) + count*0.01 #교통 체증 예상 가중치
+    rslt = haversine([x1,y1], [x2,y2]) + count*0.1 #교통 체증 예상 가중치
     # print(rslt)
     return rslt
 
@@ -174,6 +174,9 @@ def give_or_revoke_mission_to_drone_thread():
                 # print(f"{drone.id}까지의 거리:{distance}")
                 # print(f"{drone.id}의 위치:[{drone.latitude}, {drone.longitude}]")
                 if(distance < 0.01): # 10m 이내의 드론에게 배송 명령 전달
+                    """
+                    날씨 및 배터리 체크
+                    """
                     drone.destinations = route
                     routes.pop(route_idx) # for each 문인데 삽입 삭제를 시행해도 되나?
                     with write_lock:
@@ -204,6 +207,9 @@ def control_a_drone(drone) :
     if(drone.is_operating) : 
         return
     if(drone.is_landed() and len(drone.destinations) != 0 and drone.take_off_flag == 1) : # 이륙 스케쥴링 필요
+        """
+                날씨 및 배터리 체크
+        """
         print(drone, "착륙 상태, 배송 임무 하달, 이륙")
         taking_off_thread = threading.Thread(target=drone.take_off)
         taking_off_thread.start()
@@ -214,16 +220,34 @@ def control_a_drone(drone) :
             landing_thread = threading.Thread(target=drone.land)
             landing_thread.start()
             return
-        if(len(drone.destinations) > 0 and drone.remaining_distance() <= 0.001): # 여기서 고도 변경 필요.
+        if(len(drone.destinations) > 0 and drone.remaining_distance() <= 0.001): # 여기서 고도 변경 필요. move_to()로 고도 변경
             if(len(drone.destinations) != 1) :
                 drone.renew_destination()
                 drone.renew_edge()
                 print("목적지 변경")
+                """
+                날씨 및 배터리 체크
+                
+                landing_thread = threading.Thread(target=drone.land)
+                landing_thread.start()
+
+                #타이밍 계산 필요 착륙이 완료된 다음 넘겨야 함.
+                drone.destinations.insert(0, drone.prev_station)
+                routes.append(drone.destinations)
+                drone.destinations = []
+                
+                
+                착륙 완료 후 destinations를 routes로 반환
+                """
+                if(abs(drone.edge.altitude - drone.altitude) > 10) :
+                    change_altitude_thread = threading.Thread(target=drone.change_altitude, args=(drone.edge.altitude,))
+                    change_altitude_thread.start()
+                    time.sleep(0.1)
             else :
                 drone.stop()
             return
             
-        if(len(drone.destinations) > 0 and not drone.is_moving() and drone.go_flag == 1) :
+        if(len(drone.destinations) > 0 and not drone.is_moving() and drone.go_flag == 1 and not drone.is_operating) :
             drone_move_thread = threading.Thread(target=drone.move)
             drone_move_thread.start()
             return

@@ -4,7 +4,8 @@ from drone import mission_drones
 from edge import edges
 from intersection import intersections
 
-def check_collision_of_one_intersection(intersection):
+def check_collision_of_one_intersection(intersection): #겹치는 직선 제거 필요 or 교점 위 모든 드론에게 안전거리 계산 근데 뭐 부터 보낼지 고려
+                                                      #closest drone 부활 필요
     leading_drones = []  # 각 간선의 leading 드론 저장
     intersection_pos = [intersection.latitude, intersection.longitude]
     

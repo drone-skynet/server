@@ -132,7 +132,7 @@ class Drone:
       "comp_id": 190,
       "latitude": self.destinations[0].latitude,
       "longitude": self.destinations[0].longitude,
-      "altitude": self.altitude
+      "altitude": self.edge.altitude - self.home_alt
     }
     mqtt_client.publish_control_command(command)
     print("드론", self.id, "이동 시작")
@@ -150,8 +150,8 @@ class Drone:
     }
     mqtt_client.publish_control_command(command)
 
-  def find_next_edge(self):
-    return find_edge_by_point(self.destination[0], self.destination[1])
+  # def find_next_edge(self):
+  #   return find_edge_by_point(edges, self.destinations[0], self.destinations[1])
   
   def take_off(self):
     self.is_operating = True
@@ -193,7 +193,7 @@ class Drone:
       "command": "TAKEOFF",
       "sys_id": self.id,
       "comp_id": 1,
-      "altitude": 90-self.home_alt
+      "altitude": self.edge.altitude - self.home_alt
     }
     mqtt_client.publish_control_command(command)
     self.take_off_time = time.time()
@@ -230,6 +230,25 @@ class Drone:
     self.is_operating = False
 
     return
+  
+  def change_altitude(self, new_alt) :
+    self.is_operating = True
+    
+    command = {
+      "command": "MOVE_TO",
+      "sys_id": self.id,
+      "comp_id": 190,
+      "latitude": self.latitude,
+      "longitude": self.longitude,
+      "altitude": new_alt - self.home_alt,
+    }
+    mqtt_client.publish_control_command(command)
+    time.sleep(4)
+    self.is_operating = False
+
+    
+    
+
   
   def is_landed(self) :
     if(self.take_off_time == None) :
