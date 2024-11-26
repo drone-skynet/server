@@ -24,7 +24,7 @@ def update_drone_status(drone):
         "mission_status": drone.mission_status
     }
     """
-    if(drone not in waiting_drones and drone not in mission_drones) :
+    if(drone not in waiting_drones and drone not in mission_drones and not drone.is_armed) :
       waiting_drones.append(drone)
       return
     for drone1 in waiting_drones :
@@ -86,6 +86,7 @@ class Drone:
     self.home_alt = None
     self.is_operating = False
     self.take_off_flag = 0
+    self.count_before_take_off = 0
   
   def is_moving(self):
     if abs(self.vx) < 0.05 and abs(self.vy) < 0.05 and abs(self.vz) < 0.05 :
@@ -97,7 +98,7 @@ class Drone:
     self.destinations.pop(0)
   
   def renew_edge(self) :
-    if(self.edge is not None) :
+    if(self.edge is not None and self in self.edge.drones_on_the_edge) :
       self.edge.drones_on_the_edge.remove(self)
       self.edge = None
     if(len(self.destinations) < 1) :
@@ -154,9 +155,10 @@ class Drone:
   #   return find_edge_by_point(edges, self.destinations[0], self.destinations[1])
   
   def take_off(self):
+
     self.is_operating = True
     self.home_alt = self.altitude
-    self.take_off_time = time.time()
+    self.take_off_time = time.perf_counter()
     self.add_to_next_edge()    
     self.renew_destination()
     self.renew_edge()
@@ -164,7 +166,18 @@ class Drone:
     while(self.go_flag == 0) :
       time.sleep(0.3)
       print("go_flag 대기 in drone.take_off")
-      print(self.take_off_time)
+      if(len(self.destinations) == 0) : #과잉 대기로 임무 해제
+        break
+
+    if(len(self.destinations) == 0) : #과잉 대기로 임무 해제에 대한 후 처리
+      self.home_alt = None
+      self.take_off_time = None
+      if(self.edge is not None and self in self.edge.drones_on_the_edge):
+        self.edge.drones_on_the_edge.remove(self)
+      self.edge = None
+      self.is_operating = False
+      return
+    
 
     # 드론 GUIDED 모드 설정
     command = {
@@ -196,7 +209,7 @@ class Drone:
       "altitude": self.edge.altitude - self.home_alt
     }
     mqtt_client.publish_control_command(command)
-    self.take_off_time = time.time()
+    self.take_off_time = time.perf_counter()
 
     time.sleep(2)
 
@@ -219,7 +232,7 @@ class Drone:
     }
     mqtt_client.publish_control_command(command)
 
-    time.sleep(5)
+    time.sleep(20)
 
     self.take_off_time = None
     # self.edge = None

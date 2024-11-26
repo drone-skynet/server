@@ -42,7 +42,7 @@ def check_collision_of_one_intersection(intersection): #겹치는 직선 제거 
             
             # 반대 방향이면 이미 교점을 지난 것이므로 다음 드론 확인
             distance_to_intersection = haversine([drone.latitude, drone.longitude], intersection_pos)
-            if dot_product > 0 or (dot_product <=0 and distance_to_intersection < 0.005): # 10m 정도는 지나야 다음 차례 넘김 착륙 때문 
+            if dot_product > 0 or (dot_product <=0 and distance_to_intersection < 0.010): # 10m 정도는 지나야 다음 차례 넘김 착륙 때문 
               leading_drones.append(drone)
               break  # 해당 간선의 leading 드론을 찾았으므로 다음 간선으로
             
@@ -62,19 +62,19 @@ def check_collision_of_one_intersection(intersection): #겹치는 직선 제거 
     intersection.drone_queue = leading_drones[:]
     # 교점과 가장 가까운 드론 찾기
     if len(leading_drones) > 0:
-      # closest_drone = min(leading_drones, 
-      #                     key=lambda drone: haversine([drone.latitude, drone.longitude], intersection_pos))
-      # prior_drone = closest_drone
-      # if haversine([prior_drone.latitude, prior_drone.longitude], intersection_pos) >= 0.06:
-      prior_drone = leading_drones[0]
-      if len(leading_drones) >= 2:
-        prior_drone = min(leading_drones, key=lambda drone: drone.take_off_time) # 이륙한지 오래된 드론 부터 통과
+      closest_drone = min(leading_drones, 
+                          key=lambda drone: haversine([drone.latitude, drone.longitude], intersection_pos))
+      prior_drone = closest_drone
+      if haversine([prior_drone.latitude, prior_drone.longitude], intersection_pos) >= 0.06:
+      # prior_drone = leading_drones[0]
+        if len(leading_drones) > 0:
+          prior_drone = min(leading_drones, key=lambda drone: drone.take_off_time) # 이륙한지 오래된 드론 부터 통과
       # 통과 드론 제외하고 나머지 드론들 정지
       for drone in leading_drones:
         if drone != prior_drone:
           drone.go_flag = 0
       prior_drone.go_flag *= 1
-      if(intersection.is_station and prior_drone.go_flag == 1) :
+      if(intersection.is_station and prior_drone.go_flag == 1 and intersection.station == prior_drone.destinations[0]) :
          #통과하는 교점이 역이고, 통행권을 얻은 경우
           prior_drone.add_to_next_edge()
 

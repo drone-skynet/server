@@ -33,10 +33,12 @@ import time
 
 load_dotenv()
 
+TIME_INTERVAL = 0.3
+
 db_user = os.getenv('DB_USER')
 db_password = os.getenv('DB_PASSWORD')
 
-write_lock = threading.Lock()
+# write_lock = threading.Lock()
 
 routes=[]
 
@@ -125,8 +127,9 @@ def attach_intersections_to_stations() :
     for intersection in intersections:
         for station in stations:
             distance = haversine([station.latitude, station.longitude], [intersection.latitude, intersection.longitude])
-            if(distance < 0.005) : #역과의 거리가 5m 이내면 그냥 역 교점
+            if(distance < 0.011) : #역과의 거리가 11m 이내면 그냥 역 교점
                 intersection.is_station = True
+                intersection.station = station
                 station.intersection = intersection
         
 def check_un_attached_station() :
@@ -145,6 +148,7 @@ def initialize_path_planning_module() :
     check_un_attached_station()
 
     print("간선 수:",len(edges))
+    print("최종 교점 수:",len(intersections))
     
     make_graph()
 
@@ -178,30 +182,32 @@ def give_or_revoke_mission_to_drone_thread():
                     날씨 및 배터리 체크
                     """
                     drone.destinations = route
-                    routes.pop(route_idx) # for each 문인데 삽입 삭제를 시행해도 되나?
-                    with write_lock:
-                        mission_drones.append(drone)
-                        waiting_drones.remove(drone)
-                    print(f"{drone.id}에게 미션 부여")
-                    break;
+                    routes.remove(route) # for each 문인데 삽입 삭제를 시행해도 되나?
+                    mission_drones.append(drone)
+                    waiting_drones.remove(drone)
+                    print(f"{drone.id}에게 미션 부여 : {drone.destinations}")
+                    break
                     
         for drone_idx, drone in enumerate(reversed(mission_drones)):
-            # print(drone.id ,drone.is_armed, drone.is_guided)
-            if(len(drone.destinations) == 0 and not drone.is_moving() and not drone.is_armed): #and not drone.is_guided) :             
-                with write_lock:
-                    waiting_drones.append(drone)
-                    mission_drones.remove(drone)
+            if(len(drone.destinations) == 0 and not drone.is_moving() and not drone.is_armed and not drone.is_operating):     
+                waiting_drones.append(drone)
+                mission_drones.remove(drone)
                 print(f"{drone.id} 다시 대기 드론으로 전환")
         # print(f"waiting_drones : {waiting_drones}")
         # print(f"mission_drones : {mission_drones}")
                     
 def control_drone_thread() :
     while(True) :
-        time.sleep(0.3)        
+        time.sleep(TIME_INTERVAL)        
         check_all_collision()
         check_before_take_off_for_all_drones()
         for drone in mission_drones:
             control_a_drone(drone)
+            if(not drone.is_armed):
+                drone.count_before_take_off += TIME_INTERVAL
+            else:
+                drone.count_before_take_off = 0
+            return_mission_of_unarmed_drone(drone)
 
 def control_a_drone(drone) :
     if(drone.is_operating) : 
@@ -257,3 +263,15 @@ def control_a_drone(drone) :
             # if(drone.edge is not None) :
             #     print(drone.edge.drones_on_the_edge)
             return
+        
+def return_mission_of_unarmed_drone(drone):
+    if(drone.count_before_take_off > 300): # 5분이 지났는데도 비행을 시작하지 않으면 미션 반환
+        route = drone.destinations
+        if(drone.edge is not None):
+            route.insert(0, drone.prev_station)
+        print(f"{drone.id}가 경로 반환 : {route}")
+        routes.append(route)
+        drone.destinations=[]
+        drone.count_before_take_off = 0
+    return
+        

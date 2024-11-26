@@ -8,12 +8,12 @@ from pymavlink.dialects.v20 import common as mavlink2
 from pymavlink import mavutil
 
 # MQTT 브로커 정보
-MQTT_BROKER = 'localhost'
+MQTT_BROKER = 'gcs.iotocean.org'
 # PUB_TOPIC = '/Mobius/SJ_Skynet/GCS_Data/TestDrone1/sitl'
 SUB_TOPIC = '/Mobius/SJ_Skynet/Drone_Data/#'
 
 def pub_topic(sys_id) :
-    return f'/Mobius/SJ_Skynet/GCS_Data/TestDrone{251-int(sys_id)}/sitl'
+    return f'/Mobius/SJ_Skynet/GCS_Data/TestDrone{251-int(sys_id)}/orig'
 
 # 기본값 설정
 """
