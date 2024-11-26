@@ -28,3 +28,6 @@ def find_edge_by_point(edges, origin, destination) :
     if(edge.origin == origin and edge.destination == destination) :
       return edge
   return None
+
+def is_drone_passed_the_point(drone, point, dest):
+  return False
