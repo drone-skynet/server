@@ -46,7 +46,7 @@ limitDistance = 2.0
 
 def get_stations_from_db() :
     conn = mysql.connector.connect(
-        host="172.21.160.1",
+        host="172.30.1.73",
         user=db_user,
         password=db_password,
         database="drone" 
@@ -121,8 +121,10 @@ def get_station_by_name(name) :
     for station in stations:
         if station.name == name :
             return station
+            
     return None
     
+
 def attach_intersections_to_stations() :
     for intersection in intersections:
         for station in stations:
@@ -156,6 +158,10 @@ def initialize_path_planning_module() :
     giving_or_revoking_mission_thread.start()
     controling_drone_thread = threading.Thread(target=control_drone_thread)
     controling_drone_thread.start()
+
+    # 날씨 체크 쓰레드 시작
+    weather_check_thread = threading.Thread(target=check_weather_thread)
+    weather_check_thread.start()
     
     time.sleep(2)
 
@@ -275,3 +281,8 @@ def return_mission_of_unarmed_drone(drone):
         drone.count_before_take_off = 0
     return
         
+def check_weather_thread():
+    while True:
+        time.sleep(3600)  # 1시간 대기
+        for station in stations:
+            station.check_weather()  # 각 station의 날씨 체크
