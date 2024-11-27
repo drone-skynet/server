@@ -64,8 +64,8 @@ def get_drones():
 
 @app.route('/pathfinding', methods=['POST'])
 def pathfinding():
-    cname = "배송품 이름"# 배송품 이름
     
+    cname = request.form['cname']# 배송품 이름
     sname = request.form['sname']
     dname = request.form['dname']
 
@@ -80,47 +80,15 @@ def pathfinding():
 
     return request.json
 
-@app.route('/send_control_command', methods=['GET'])
-def send_control_command():
-    # 요청으로부터 제어 명령 데이터를 가져옴
-    command_data = request.json
 
-    # MQTT 클라이언트에 제어 명령 데이터 전송
-    mqtt_client.publish_control_command(command_data)
-    print(f"Control command sent to MQTT: {command_data}")
-
-    return jsonify({"status": "Command sent", "command": command_data})
-
-# 테스트용 엔드포인트
-@app.route('/test_publish', methods=['GET'])
-def test_publish():
-    print("test_publish called!")
-    test_command = {
-
-        # "command": "SET_MODE",
-        # "mode": "GUIDED",
-        # "sys_id": 1,
-
-        # "command": "ARM",
-        # "sys_id": 1,
-        # "comp_id": 1
-
-        # "command": "TAKEOFF",
-        # "sys_id": 1,
-        # "comp_id": 1,
-        # "altitude": 30
-
-        # "command": "MOVE_TO",
-        # "latitude": 35.360489,
-        # "longitude": 149.169093,
-        # "altitude": 30
-
-        "command": "LAND",
-        "sys_id": 1,
-        "comp_id": 1
-    }
-    mqtt_client.publish_control_command(test_command)
-    return jsonify({"status": "Test command sent", "command": test_command})
+@app.route('/stations/flyable', methods=['GET'])
+def get_all_stations_flyable():
+    stations_status = [{
+        'station_name': station.name,
+        'is_flyable': station.is_flyable
+    } for station in stations]
+    
+    return jsonify(stations_status)
 
 
 #Flask 서버를 실행

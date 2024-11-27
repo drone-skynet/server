@@ -26,6 +26,7 @@ def update_drone_status(drone):
     """
     if(drone not in waiting_drones and drone not in mission_drones and not drone.is_armed) :
       waiting_drones.append(drone)
+      drone.battery_status = 100
       return
     for drone1 in waiting_drones :
       if(drone1.id == drone.id) :
@@ -37,8 +38,8 @@ def update_drone_status(drone):
         drone1.vx = drone.vx if drone.vx is not None else drone1.vx
         drone1.vy = drone.vy if drone.vy is not None else drone1.vy
         drone1.vz = drone.vz if drone.vz is not None else drone1.vz
-        drone1.battery_status = drone.battery_status if drone.battery_status is not None else drone1.battery_status
-        drone1.mission_status = drone.mission_status if drone.mission_status is not None else drone1.mission_status
+        # drone1.battery_status = drone.battery_status if drone.battery_status is not None else drone1.battery_status
+        # drone1.mission_status = drone.mission_status if drone.mission_status is not None else drone1.mission_status
         return
     for drone1 in mission_drones :
       if(drone1.id == drone.id) :
@@ -50,8 +51,8 @@ def update_drone_status(drone):
         drone1.vx = drone.vx if drone.vx is not None else drone1.vx
         drone1.vy = drone.vy if drone.vy is not None else drone1.vy
         drone1.vz = drone.vz if drone.vz is not None else drone1.vz
-        drone1.battery_status = drone.battery_status if drone.battery_status is not None else drone1.battery_status
-        drone1.mission_status = drone.mission_status if drone.mission_status is not None else drone1.mission_status
+        # drone1.battery_status = drone.battery_status if drone.battery_status is not None else drone1.battery_status
+        # drone1.mission_status = drone.mission_status if drone.mission_status is not None else drone1.mission_status
         return
 
 # 현재 드론 상태 정보를 반환
@@ -233,6 +234,8 @@ class Drone:
     self.take_off_time = time.perf_counter()
 
     time.sleep(2)
+    while(not self.is_moving()):
+      time.sleep(1)
 
     
     self.is_operating = False
@@ -269,7 +272,7 @@ class Drone:
   
   def change_altitude(self, new_alt) :
     self.is_operating = True
-    
+    print(self.id ,"고도 변경")
     command = {
       "command": "MOVE_TO",
       "sys_id": self.id,
@@ -279,7 +282,20 @@ class Drone:
       "altitude": new_alt - self.home_alt,
     }
     mqtt_client.publish_control_command(command)
-    time.sleep(4)
+    
+    time.sleep(2)
+
+    while(True) :
+      before_alt = self.altitude
+      time.sleep(1)
+      # print(self.id, "1초 지남")
+      after_alt = self.altitude
+      if abs(before_alt - after_alt) < 0.1:
+        break
+      
+
+    self.renew_destination()
+    self.renew_edge()
     self.is_operating = False
 
     
