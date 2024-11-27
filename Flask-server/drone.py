@@ -54,9 +54,12 @@ def update_drone_status(drone):
         drone1.mission_status = drone.mission_status if drone.mission_status is not None else drone1.mission_status
         return
 
-  #현재 드론 상태 정보를 반환
+# 현재 드론 상태 정보를 반환
 def get_drone_status(): 
     return drone_statuses
+
+def get_mission_drones():
+  return mission_drones
 
 class Drone:
   edges = []
@@ -89,6 +92,23 @@ class Drone:
     self.count_before_take_off = 0
     self.delivery = None
   
+
+  def to_dict(self):
+    return {
+      "id": self.id,
+      "is_armed": self.is_armed,
+      "is_guided": self.is_guided,
+      "latitude": self.latitude,
+      "longitude": self.longitude,
+      "altitude": self.altitude,
+      "vx": self.vx,
+      "vy": self.vy,
+      "vz": self.vz,
+      "battery_status": self.battery_status,
+      "mission_status": self.mission_status,
+      "destinations": [dest.to_dict() for dest in self.destinations]  # 목적지도 직렬화
+    }
+
   def is_moving(self):
     if abs(self.vx) < 0.05 and abs(self.vy) < 0.05 and abs(self.vz) < 0.05 :
       return False
