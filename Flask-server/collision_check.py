@@ -42,7 +42,7 @@ def check_collision_of_one_intersection(intersection): #겹치는 직선 제거 
             
             # 반대 방향이면 이미 교점을 지난 것이므로 다음 드론 확인
             distance_to_intersection = haversine([drone.latitude, drone.longitude], intersection_pos)
-            if dot_product > 0 or (dot_product <=0 and distance_to_intersection < 0.010): # 10m 정도는 지나야 다음 차례 넘김 착륙 때문 
+            if dot_product > 0 or (dot_product <=0 and distance_to_intersection < 0.020): # 10m 정도는 지나야 다음 차례 넘김 착륙 때문 
               leading_drones.append(drone)
               break  # 해당 간선의 leading 드론을 찾았으므로 다음 간선으로
             

@@ -3,17 +3,90 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>경로 탐색</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      form {
+        background-color: white;
+        padding: 20px 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 400px;
+      }
+      form label {
+        font-weight: bold;
+        display: block;
+        margin-bottom: 8px;
+      }
+      form input {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 16px;
+      }
+      form button {
+        width: 100%;
+        background-color: #007bff;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+      form button:hover {
+        background-color: #0056b3;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #333;
+      }
+    </style>
   </head>
   <body>
-    <script src="../static/main.js"></script>
     <form action="/pathfinding" method="post">
-      <label for="sname">출발지 : </label>
-      <input type="text" id="sname" name="sname" required />
-      <br />
-      <label for="sname">목적지 : </label>
-      <input type="text" id="dname" name="dname" required />
-      <br />
+      <h1>경로 탐색</h1>
+      <label for="item">배송 물품 이름</label>
+      <input
+        type="text"
+        id="item"
+        name="cname"
+        placeholder="배송 물품 이름을 입력하세요"
+        required
+      />
+
+      <label for="sname">출발지</label>
+      <input
+        type="text"
+        id="sname"
+        name="sname"
+        placeholder="출발지를 입력하세요"
+        required
+      />
+
+      <label for="dname">목적지</label>
+      <input
+        type="text"
+        id="dname"
+        name="dname"
+        placeholder="목적지를 입력하세요"
+        required
+      />
+
       <button type="submit">제출</button>
     </form>
   </body>
