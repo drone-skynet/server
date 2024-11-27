@@ -36,11 +36,11 @@ def get_station_weather(station):
         'ny': station.grid_y
     }
 
-    print(f"API 요청 파라미터: {params}")  # 파라미터 출력
+    # print(f"API 요청 파라미터: {params}")  # 파라미터 출력
 
     try:
         res = requests.get(url=url, params=params)
-        print(f"API 응답: {res.text}")  # 응답 내용을 출력
+        # print(f"API 응답: {res.text}")  # 응답 내용을 출력
         data = res.json()['response']['body']['items']['item']
         
         for item in data:
@@ -50,5 +50,5 @@ def get_station_weather(station):
         return False  # 기본값은 비가 안옴
         
     except Exception as e:
-        print(f"날씨 정보 조회 실패: {e}")
+        # print(f"날씨 정보 조회 실패: {e}")
         return False

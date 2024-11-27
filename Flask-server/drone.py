@@ -24,7 +24,7 @@ def update_drone_status(drone):
         "mission_status": drone.mission_status
     }
     """
-    if(drone not in waiting_drones and drone not in mission_drones) :
+    if(drone not in waiting_drones and drone not in mission_drones and not drone.is_armed) :
       waiting_drones.append(drone)
       return
     for drone1 in waiting_drones :
@@ -85,6 +85,9 @@ class Drone:
     self.edge = None
     self.home_alt = None
     self.is_operating = False
+    self.take_off_flag = 0
+    self.count_before_take_off = 0
+    self.delivery = None
   
   def is_moving(self):
     if abs(self.vx) < 0.05 and abs(self.vy) < 0.05 and abs(self.vz) < 0.05 :
@@ -96,7 +99,7 @@ class Drone:
     self.destinations.pop(0)
   
   def renew_edge(self) :
-    if(self.edge is not None) :
+    if(self.edge is not None and self in self.edge.drones_on_the_edge) :
       self.edge.drones_on_the_edge.remove(self)
       self.edge = None
     if(len(self.destinations) < 1) :
@@ -131,7 +134,7 @@ class Drone:
       "comp_id": 190,
       "latitude": self.destinations[0].latitude,
       "longitude": self.destinations[0].longitude,
-      "altitude": self.altitude
+      "altitude": self.edge.altitude - self.home_alt
     }
     mqtt_client.publish_control_command(command)
     print("드론", self.id, "이동 시작")
@@ -148,17 +151,34 @@ class Drone:
       "sys_id": self.id,
     }
     mqtt_client.publish_control_command(command)
-    print("드론",self.id,"강제 멈춤")
 
-  def find_next_edge(self):
-    return find_edge_by_point(self.destination[0], self.destination[1])
+  # def find_next_edge(self):
+  #   return find_edge_by_point(edges, self.destinations[0], self.destinations[1])
   
   def take_off(self):
+
     self.is_operating = True
     self.home_alt = self.altitude
+    self.take_off_time = time.perf_counter()
     self.add_to_next_edge()    
     self.renew_destination()
     self.renew_edge()
+
+    while(self.go_flag == 0) :
+      time.sleep(0.3)
+      print("go_flag 대기 in drone.take_off")
+      if(len(self.destinations) == 0) : #과잉 대기로 임무 해제
+        break
+
+    if(len(self.destinations) == 0) : #과잉 대기로 임무 해제에 대한 후 처리
+      self.home_alt = None
+      self.take_off_time = None
+      if(self.edge is not None and self in self.edge.drones_on_the_edge):
+        self.edge.drones_on_the_edge.remove(self)
+      self.edge = None
+      self.is_operating = False
+      return
+    
 
     # 드론 GUIDED 모드 설정
     command = {
@@ -180,19 +200,21 @@ class Drone:
     mqtt_client.publish_control_command(command)
     
     time.sleep(2)
-
+    
+    
     # 이륙
     command = {
       "command": "TAKEOFF",
       "sys_id": self.id,
       "comp_id": 1,
-      "altitude": 90-self.home_alt
+      "altitude": self.edge.altitude - self.home_alt
     }
     mqtt_client.publish_control_command(command)
+    self.take_off_time = time.perf_counter()
 
-    time.sleep(10)
+    time.sleep(2)
 
-    self.take_off_time = time.time()
+    
     self.is_operating = False
     print("드론", self.id, "이륙")
     
@@ -211,13 +233,38 @@ class Drone:
     }
     mqtt_client.publish_control_command(command)
 
+    #time.sleep(20)
+
+    while(self.is_armed):
+      time.sleep(1)
+
     self.take_off_time = None
-    self.edge = None
-    time.sleep(15)
-    # self.renew_edge()
+    # tmp_edge = self.edge
+    self.renew_destination()
+    self.renew_edge() #self.edge 제거
+    #print(tmp_edge.drones_on_the_edge)
     self.is_operating = False
 
     return
+  
+  def change_altitude(self, new_alt) :
+    self.is_operating = True
+    
+    command = {
+      "command": "MOVE_TO",
+      "sys_id": self.id,
+      "comp_id": 190,
+      "latitude": self.latitude,
+      "longitude": self.longitude,
+      "altitude": new_alt - self.home_alt,
+    }
+    mqtt_client.publish_control_command(command)
+    time.sleep(4)
+    self.is_operating = False
+
+    
+    
+
   
   def is_landed(self) :
     if(self.take_off_time == None) :

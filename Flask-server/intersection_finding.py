@@ -22,14 +22,14 @@ def solution_of_2_edges(edge1, edge2) :
   #print("위점:",upper_end_x,"아래점:",lower_end_x)
   x = round(x, 6)
   y = round(y, 6)
-  if(upper_end_x+0.000001 > x and lower_end_x - 0.000001 < x) : #선 사이에서 교점
+  if(upper_end_x+0.000010 > x and lower_end_x - 0.000010 < x) : #선 사이에서 교점
     #print("교점 찾음 :", x, y)
     intersection = Intersection([edge1, edge2], y, x)
     return intersection
   return None
 
 
-def find_all_intersections() :
+def find_all_intersections() : # 필요시 intersection을 append 하기 전에 역 교점인지 먼저 확인하고 거기에 주변을 다 붙여야 함.
   edges_len = len(edges)
   for i in range(edges_len):
     for j in range(i+1, edges_len):

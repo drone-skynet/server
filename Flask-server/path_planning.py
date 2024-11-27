@@ -3,6 +3,7 @@ from station import Station, stations
 from edge import Edge, edges
 from drone import mission_drones, waiting_drones
 from intersection import intersections
+from take_off_landing_scheduler import check_before_take_off_for_all_drones
 from utils import haversine
 from intersection_finding import find_all_intersections
 from collision_check import check_all_collision
@@ -32,12 +33,15 @@ import time
 
 load_dotenv()
 
+TIME_INTERVAL = 0.3
+
 db_user = os.getenv('DB_USER')
 db_password = os.getenv('DB_PASSWORD')
 
+# write_lock = threading.Lock()
 
-
-routes=[]
+#routes=[]
+waiting_delivery=[]
 
 limitDistance = 2.0
 
@@ -66,8 +70,8 @@ def get_edges_by_stations() :
     n = len(stations)
     for i in range(n):
         for j in range(i+1,n):
-            edges.append(Edge(stations[i],stations[j]))
-            edges.append(Edge(stations[j],stations[i]))
+            edges.append(Edge(stations[i], stations[j], 90))
+            edges.append(Edge(stations[j], stations[i], 120))
             if(edges[-1].weight > limitDistance) : 
                 edges.pop()
                 edges.pop()
@@ -86,7 +90,7 @@ def heuristic(n1, n2):
             if (drone.destinations[i].latitude == y1 and drone.destinations[i].longitude == x1 ):
                 count += 1
                 break
-    rslt = haversine([x1,y1], [x2,y2]) + count*0.01 #교통 체증 예상 가중치
+    rslt = haversine([x1,y1], [x2,y2]) + count*0.1 #교통 체증 예상 가중치
     # print(rslt)
     return rslt
 
@@ -107,14 +111,9 @@ def make_graph() :
 
 def search_route(start, goal) :
     path = nx.astar_path(G, start, goal, heuristic=heuristic, weight='weight')
-
-    rsltStr=""
-    for station in path :
-        rsltStr += station.name+" "
-    print(rsltStr)
-
-   
-    
+    # rsltStr=""
+    # for station in path :
+    #     rsltStr += station.name+" "
     return path
 
 def get_station_by_name(name) :
@@ -128,14 +127,17 @@ def attach_intersections_to_stations() :
     for intersection in intersections:
         for station in stations:
             distance = haversine([station.latitude, station.longitude], [intersection.latitude, intersection.longitude])
-            if(distance < 0.005) : #역과의 거리가 5m 이내면 그냥 역 교점
+            if(distance < 0.011) : #역과의 거리가 11m 이내면 그냥 역 교점
                 intersection.is_station = True
+                intersection.station = station
                 station.intersection = intersection
         
 def check_un_attached_station() :
     for station in stations:
         if(station.intersection is None) :
             print(station.name)            
+        # elif(station.name == "군자(능동)") :
+        #     print(station.name, "연결된 간선:", station.intersection.edges) 
     
 
 def initialize_path_planning_module() :
@@ -146,6 +148,7 @@ def initialize_path_planning_module() :
     check_un_attached_station()
 
     print("간선 수:",len(edges))
+    print("최종 교점 수:",len(intersections))
     
     make_graph()
 
@@ -157,34 +160,68 @@ def initialize_path_planning_module() :
     weather_check_thread = threading.Thread(target=check_weather_thread)
     weather_check_thread.start()
     
+    time.sleep(2)
 
     print(f"waiting_drones : {waiting_drones}")
     print("초기화 끝")
 
 def give_or_revoke_mission_to_drone_thread():
     while(True) :
-        time.sleep(1)
-        
+        time.sleep(3)
+        # print(waiting_delivery)
         for drone_idx, drone in enumerate(reversed(waiting_drones)):
-            for route_idx, route in enumerate(reversed(routes)):
-                if(len(route) <= 1) :
-                    routes.pop(route_idx)
+            for idx, delivery in enumerate(reversed(waiting_delivery)):
+                if(delivery.origin == delivery.destination):
+                    waiting_delivery.remove(delivery)
+                    print(f"배송 완료된 배송 : {delivery.content}")
                     continue
+                # if(len(delivery.route) <= 1) :
+                #     wating_delivery.remove(delivery)
+                #     continue
+                route = search_route(get_station_by_name(delivery.origin), get_station_by_name(delivery.destination))
                 start_station = route[0]
+                #print(route)# 왜 start_station이 null이 나오지?
+                """
+                #날씨 체크
+                """
+                if(not start_station.is_flyable or not route[1].is_flyable):
+                    print("날씨 이슈")
+                    continue
                 distance = haversine([drone.latitude, drone.longitude], [start_station.latitude, start_station.longitude])
                 # print(f"{drone.id}까지의 거리:{distance}")
                 # print(f"{drone.id}의 위치:[{drone.latitude}, {drone.longitude}]")
                 if(distance < 0.01): # 10m 이내의 드론에게 배송 명령 전달
                     drone.destinations = route
-                    routes.remove(route) # for each 문인데 삽입 삭제를 시행해도 되나?
+                    drone.delivery = delivery
+                    waiting_delivery.remove(delivery) # for each 문인데 삽입 삭제를 시행해도 되나?
+                    delivery.is_reserved=False
                     mission_drones.append(drone)
                     waiting_drones.remove(drone)
-                    print(f"{drone.id}에게 미션 부여")
-                    break;
+                    print(f"{drone.id}에게 미션 부여 : {drone.destinations}")
+                    break
+        #물품은 있지만 드론이 없어서 할당받지 못한 배송들
+        for idx, delivery in enumerate(reversed(waiting_delivery)):
+            if(delivery.is_reserved):
+                continue
+            nearest_drone = find_nearest_waiting_drone(start_station)
+            if(nearest_drone is None): #대기중인 드론조차 없음
+                continue
+            retrive_route = search_route(get_nearest_station(nearest_drone.latitude, nearest_drone.longitude) ,get_station_by_name(delivery.origin))
+            #날씨 체크 및 배터리 체크
+            if(not retrive_route[0].is_flyable or not retrive_route[1].is_flyable):
+                print("날씨 이슈")
+                continue
+            if(nearest_drone is not None) : #이건 배송이 아님 -> 배송 라우트와 배송 아닌 라우트 구분 해야겠다
+                nearest_drone.destinations = retrive_route
+                delivery.is_reserved = True
+                mission_drones.append(nearest_drone)
+                waiting_drones.remove(nearest_drone)
+                print(f"{start_station}에 드론 없음. 드론{nearest_drone.id}을 보냄 ")
+
+
                     
         for drone_idx, drone in enumerate(reversed(mission_drones)):
-            # print(drone.id ,drone.is_armed, drone.is_guided)
-            if(len(drone.destinations) == 0 and not drone.is_moving() and not drone.is_armed): #and not drone.is_guided) :             
+            if(len(drone.destinations) == 0 and not drone.is_moving() and not drone.is_armed and not drone.is_operating):     
                 waiting_drones.append(drone)
                 mission_drones.remove(drone)
                 print(f"{drone.id} 다시 대기 드론으로 전환")
@@ -193,68 +230,100 @@ def give_or_revoke_mission_to_drone_thread():
                     
 def control_drone_thread() :
     while(True) :
-        time.sleep(0.3)        
+        time.sleep(TIME_INTERVAL)        
         check_all_collision()
+        check_before_take_off_for_all_drones()
         for drone in mission_drones:
             control_a_drone(drone)
-
-
-def check_weather_thread():
-    while True:
-        try:
-            for station in stations:
-                station.check_weather()
-                if not station.is_flyable:
-                    print(f"{station.name}역 날씨 악화로 비행 불가")
-            time.sleep(3600)  # 60분마다 체크
-        except Exception as e:
-            print(f"날씨 체크 중 오류 발생: {e}")
-            time.sleep(60)  # 오류 발생시 1분 후 재시도
+            if(not drone.is_armed):
+                drone.count_before_take_off += TIME_INTERVAL
+                if(drone.count_before_take_off > 300) :
+                    return_mission_of_unarmed_drone(drone)
+            else:
+                drone.count_before_take_off = 0
+            
 
 def control_a_drone(drone) :
     if(drone.is_operating) : 
         return
-    if(drone.is_landed() and len(drone.destinations) != 0) : # 이륙 스케쥴링 필요
+    if(drone.is_landed() and len(drone.destinations) != 0 and drone.take_off_flag == 1) : # 이륙 스케쥴링 필요
+
+        #날씨 및 배터리 체크
+        if(not drone.destinations[0].is_flyable or not drone.destinations[1].is_flyable):
+            print(drone, "악천후로 이륙 불가, 대기")
+            return        
         print(drone, "착륙 상태, 배송 임무 하달, 이륙")
         taking_off_thread = threading.Thread(target=drone.take_off)
         taking_off_thread.start()
         return
     if(drone.is_armed) :
-        if(len(drone.destinations) == 0 and not drone.is_moving()) :
-            print("최종 목적지 도착")
+        if(len(drone.destinations) == 1 and not drone.is_moving() and drone.go_flag == 1 and drone.remaining_distance() <= 0.001) :
+            print(f"{drone.id} 최종 목적지 도착")
             landing_thread = threading.Thread(target=drone.land)
             landing_thread.start()
+            #착륙 끝나면 물품 반환
+            return_mission_thread = threading.Thread(target=return_mission_of_unarmed_drone, args=(drone,))
+            return_mission_thread.start()
             return
-        if(len(drone.destinations) > 0 and drone.remaining_distance() <= 0.001):
-            print("목적지 변경")
-            drone.stop()
-            drone.renew_destination()
-            drone.renew_edge()
-            if(len(drone.destinations) == 0) :
-                return
-        if(not drone.is_moving() and not drone.is_operating and drone.go_flag == 1) :
+        if(len(drone.destinations) > 0 and drone.remaining_distance() <= 0.001): # 여기서 고도 변경 필요. move_to()로 고도 변경
+            if(len(drone.destinations) != 1) :
+                drone.renew_destination()
+                drone.renew_edge()
+                print("목적지 변경")
+                
+                #날씨 및 배터리 체크
+                if(not drone.destinations[0].is_flyable or not drone.prev_station.is_flyable):
+                    #착륙
+                    landing_thread = threading.Thread(target=drone.land)
+                    landing_thread.start()
+                    #착륙 끝나면 물품 반환
+                    return_mission_thread = threading.Thread(target=return_mission_of_unarmed_drone, args=(drone,))
+                    return_mission_thread.start()
+
+                if(abs(drone.edge.altitude - drone.altitude) > 10) :
+                    change_altitude_thread = threading.Thread(target=drone.change_altitude, args=(drone.edge.altitude,))
+                    change_altitude_thread.start()
+                    time.sleep(0.1)
+            else :
+                drone.stop()
+            return
+            
+        if(len(drone.destinations) > 0 and not drone.is_moving() and drone.go_flag == 1 and not drone.is_operating) :
             drone_move_thread = threading.Thread(target=drone.move)
             drone_move_thread.start()
             return
-        if(drone.is_moving() and not drone.is_operating and drone.go_flag == 0) :
+        if(drone.is_moving() and drone.go_flag == 0) :
             drone.stop()
-            print(drone.id)
-            if(drone.edge is not None) :
-                print(drone.edge.drones_on_the_edge)
             return
+        
+def return_mission_of_unarmed_drone(drone):
+    while(drone.is_armed) :
+        time.sleep(1)
+    time.sleep(1.5)
+    if(drone.delivery is not None) : 
+        print(f"{drone.id}가 물품 반환 : {drone.delivery}")
+        if(drone.prev_station is not None):
+            drone.delivery.origin = drone.prev_station.name
+        waiting_delivery.append(drone.delivery)
+    drone.destinations=[]
+    drone.delivery=None
+    drone.count_before_take_off = 0
+    return
+        
+def check_weather_thread():
+    while True:
+        try:
+            for station in stations:
+                station.check_weather()
+            time.sleep(3600)  # 60분마다 체크
+        except Exception as e:
+            time.sleep(60)  # 오류 발생시 1분 후 재시도
+        
 
-#특정 역에 드론이 있는지
-def check_drone_at_station(station):
-    for drone in waiting_drones:
-        distance = haversine([drone.latitude, drone.longitude], [station.latitude, station.longitude])
-        if distance < 0.01:  # 10m 이내에 드론이 있는지 확인
-            return True
-    return False
 
-#특정 역에 가장 가까운 드론 찾기
 def find_nearest_waiting_drone(station):
     nearest_drone = None
-    min_distance = float('inf')
+    min_distance = float('inf') #10km로 하는 게 낫지 않을까?
     
     for drone in waiting_drones:
         distance = haversine([drone.latitude, drone.longitude], [station.latitude, station.longitude])
@@ -264,7 +333,6 @@ def find_nearest_waiting_drone(station):
     
     return nearest_drone
 
-#특정 좌표에 가장 가까운 역 찾기
 def get_nearest_station(lat, lon):
     nearest_station = None
     min_distance = float('inf')

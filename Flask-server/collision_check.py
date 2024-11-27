@@ -4,7 +4,8 @@ from drone import mission_drones
 from edge import edges
 from intersection import intersections
 
-def check_collision_of_one_intersection(intersection):
+def check_collision_of_one_intersection(intersection): #겹치는 직선 제거 필요 or 교점 위 모든 드론에게 안전거리 계산 근데 뭐 부터 보낼지 고려
+                                                      #closest drone 부활 필요
     leading_drones = []  # 각 간선의 leading 드론 저장
     intersection_pos = [intersection.latitude, intersection.longitude]
     
@@ -31,8 +32,8 @@ def check_collision_of_one_intersection(intersection):
             
             # 목적지까지의 방향 벡터 계산 
             direction_to_dest = [
-                next_dest[0] - drone_pos[0],
-                next_dest[1] - drone_pos[1]
+                next_dest[0] - drone.prev_station.latitude,  #drone에서 목적지 벡터를 이전역에서 다음역 벡터로 바꿈
+                next_dest[1] - drone.prev_station.longitude
             ]
             
             # 두 방향 벡터의 내적이 음수이면 서로 반대 방향
@@ -40,7 +41,8 @@ def check_collision_of_one_intersection(intersection):
                          direction_to_intersection[1] * direction_to_dest[1])
             
             # 반대 방향이면 이미 교점을 지난 것이므로 다음 드론 확인
-            if dot_product < 0:
+            distance_to_intersection = haversine([drone.latitude, drone.longitude], intersection_pos)
+            if dot_product > 0 or (dot_product <=0 and distance_to_intersection < 0.010): # 10m 정도는 지나야 다음 차례 넘김 착륙 때문 
               leading_drones.append(drone)
               break  # 해당 간선의 leading 드론을 찾았으므로 다음 간선으로
             
@@ -52,22 +54,27 @@ def check_collision_of_one_intersection(intersection):
     filtered_drones = []
     for drone in leading_drones:
         distance_to_intersection = haversine([drone.latitude, drone.longitude], intersection_pos)
+        #print(f"{drone.id}의 교점까지의 거리 : {distance_to_intersection}")
         if distance_to_intersection < 0.1:
             filtered_drones.append(drone)
     leading_drones = filtered_drones
+    #drone_queue에 복사 (이륙 스케쥴링을 위함)
+    intersection.drone_queue = leading_drones[:]
     # 교점과 가장 가까운 드론 찾기
     if len(leading_drones) > 0:
       closest_drone = min(leading_drones, 
                           key=lambda drone: haversine([drone.latitude, drone.longitude], intersection_pos))
       prior_drone = closest_drone
-      if haversine([prior_drone.latitude, prior_drone.longitude], intersection_pos) >= 0.006:
-          prior_drone = min(leading_drones, key=lambda drone: drone.take_off_time)
-      # 가장 가까운 드론 제외하고 나머지 드론들 정지
+      if haversine([prior_drone.latitude, prior_drone.longitude], intersection_pos) >= 0.06:
+      # prior_drone = leading_drones[0]
+        if len(leading_drones) > 0:
+          prior_drone = min(leading_drones, key=lambda drone: drone.take_off_time) # 이륙한지 오래된 드론 부터 통과
+      # 통과 드론 제외하고 나머지 드론들 정지
       for drone in leading_drones:
         if drone != prior_drone:
           drone.go_flag = 0
       prior_drone.go_flag *= 1
-      if(intersection.is_station and prior_drone.go_flag == 1) :
+      if(intersection.is_station and prior_drone.go_flag == 1 and intersection.station == prior_drone.destinations[0]) :
          #통과하는 교점이 역이고, 통행권을 얻은 경우
           prior_drone.add_to_next_edge()
 
@@ -99,7 +106,7 @@ def check_collision_in_all_edges() :
 
 def check_all_collision() :
   for drone in mission_drones :
-    if(drone.is_armed) :
+    if(drone.take_off_time is not None) :
       drone.go_flag = 1
   check_collision_in_all_edges()
   check_collision_of_all_intersections()

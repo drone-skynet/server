@@ -1,3 +1,4 @@
+from utils import haversine
 intersections=[]
 
 class Intersection :
@@ -7,6 +8,7 @@ class Intersection :
     self.longitude = longitude
     self.drone_queue = []
     self.is_station = False
+    self.station = None
 
   def __repr__(self):
     return "{Intersection " + str(self.latitude) + ", " + str(self.longitude) + "}"
@@ -20,7 +22,7 @@ class Intersection :
       return hash((self.latitude, self.longitude))
   
   def fuse_same_point(self, other) : 
-    if self.__eq__(other) :
+    if haversine([self.latitude, self.longitude], [other.latitude, other.longitude]) < 0.01 : #10m 이내의 교점은 하나로 뭉치기 #self.__eq__(other) :
       #self.edges.extend(other.edges)
       for new_edge in other.edges:
         if new_edge not in self.edges : #하나의 경로가 두 개의 경로와 교점을 만들어도, 중복된 경로는 한 번만 들어가게

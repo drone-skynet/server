@@ -8,6 +8,7 @@ import mqtt_client, weather_api
 from dotenv import load_dotenv
 import os
 from path_planning import *
+from delivery import Delivery
 
 load_dotenv()
 
@@ -26,23 +27,21 @@ def index():
 
 @app.route('/pathfinding', methods=['POST'])
 def pathfinding():
+    cname = "배송품 이름"# 배송품 이름
+    
     sname = request.form['sname']
     dname = request.form['dname']
-    
-    start_station = get_station_by_name(sname)
-    
-    if not check_drone_at_station(start_station):
-        # 가장 가까운 대기 드론 찾기
-        nearest_drone = find_nearest_waiting_drone(start_station)
-        if nearest_drone:
-            # 드론을 출발지로 이동시키는 경로 추가
-            drone_current_station = get_nearest_station(nearest_drone.latitude, nearest_drone.longitude)
-            routes.append(search_route(drone_current_station, start_station))
-    
-    # 원래 요청된 경로 추가
-    routes.append(search_route(start_station, get_station_by_name(dname)))
-    
-    return jsonify({"status": "success"})
+
+    new_delivery = Delivery(cname, sname, dname)
+    waiting_delivery.append(new_delivery)
+    # 경로 계산 로직 
+    #routes.append(search_route(get_station_by_name(sname), get_station_by_name(dname)))
+    # print(f"출발지 : {sname}, 목적지 : {dname}의 경로 계산 완료!")
+
+    # 경로 전달
+
+
+    return request.json
 
 
 @app.route('/send_control_command', methods=['GET'])
