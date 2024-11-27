@@ -44,7 +44,7 @@ def api_delivery_info():
         "edge_origin_name": drone.edge.origin.name,
         "edge_destinations_name": drone.edge.destination.name,
         "delivery_content": drone.delivery.content,
-        "delivery_detination": drone.delivery.destination,
+        "delivery_destination": drone.delivery.destination,
         "edt": drone.edt
     }
     return jsonify(drone_info)
@@ -53,13 +53,32 @@ def api_delivery_info():
 # 임시 현재 운행 중인 드론 상태를 반환하는 엔드포인트
 @app.route('/api/mission_drones', methods=['GET'])
 def get_drones():
-    mission_drones = get_mission_drones()  # 드론 상태를 가져옴
+    # mission_drones = get_mission_drones()  # 드론 상태를 가져옴
 
     # 드론 객체를 JSON 직렬화 가능한 형태로 변환
-    mission_drones_data = [drone.to_dict() for drone in mission_drones]
-
-    print(f"\n{mission_drones_data}\n")
-    return jsonify(mission_drones_data)
+    # mission_drones_data = [drone.to_dict() for drone in mission_drones]
+    # print(f"\n{mission_drones_data}\n")
+    # return jsonify(mission_drones_data)
+    drones = mission_drones[:]
+    rslt = []
+    for drone in drones :
+        rslt.append({
+        "id": drone.id,
+        "battery_status": drone.battery_status,
+        "altitude": drone.altitude,
+        # "waypoints": drone.destinations,
+        "edge_origin_name": drone.edge.origin.name,
+        "edge_destination_name": drone.edge.destination.name,
+        "delivery_content": drone.delivery.content if drone.delivery is not None else None,
+        "delivery_destination": drone.destinations[-1].name,
+        # "edt": drone.edt
+        "vx": drone.vx,
+        "vy": drone.vy,
+        "vz": drone.vz
+        })
+        
+    return jsonify(rslt)
+    
 
 
 @app.route('/pathfinding', methods=['POST'])

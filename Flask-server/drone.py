@@ -258,8 +258,13 @@ class Drone:
 
     #time.sleep(20)
 
-    while(self.is_armed):
+    while(True):
+      before_alt = self.altitude
       time.sleep(1)
+      # print(self.id, "1초 지남")
+      after_alt = self.altitude
+      if abs(before_alt - after_alt) < 0.1 and not self.is_armed:
+        break
 
     self.take_off_time = None
     # tmp_edge = self.edge

@@ -175,7 +175,7 @@ def initialize_path_planning_module() :
     print(f"mission_drones : {mission_drones}")
     print("초기화 끝")
 
-BATTERY_SPEED = 100/1200*3
+BATTERY_SPEED = 100/300*3
 def give_or_revoke_mission_to_drone_thread():
     while(True) :
         time.sleep(3)
@@ -276,9 +276,13 @@ def control_a_drone(drone) :
     if(drone.is_landed() and len(drone.destinations) != 0 and drone.take_off_flag == 1) : # 이륙 스케쥴링 필요
 
         #날씨 및 배터리 체크
-        if(not drone.destinations[0].is_flyable or not drone.destinations[1].is_flyable or drone.battery_status <= LOW_BATTERY_LEVEL):
-            print(drone, "악천후 혹은 배터리 부족으로 이륙 불가, 대기")
+        if(not drone.destinations[0].is_flyable or not drone.destinations[1].is_flyable):
+            print(drone.id, "악천후로 인한 대기")
             return        
+        if(drone.battery_status <= LOW_BATTERY_LEVEL) :
+            print(drone.id,"배터리 부족으로 임무 취소")
+            return_mission_of_unarmed_drone(drone)
+            return
         print(drone, "착륙 상태, 배송 임무 하달, 이륙")
         taking_off_thread = threading.Thread(target=drone.take_off)
         taking_off_thread.start()
@@ -328,19 +332,23 @@ def control_a_drone(drone) :
             return
         
 def return_mission_of_unarmed_drone(drone):
+    drone.is_operating = True
     while(drone.is_armed) :
         time.sleep(1)
-    time.sleep(1.5)
+        drone.is_operating = True
+    
     if(drone.delivery is not None) : 
         print(f"{drone.id}가 물품 반환 : {drone.delivery}")
         if(drone.prev_station is not None):
             drone.delivery.origin = drone.prev_station.name
-        waiting_delivery.append(drone.delivery)
-    drone.destinations=[]
-    if(drone.delivery is not None):
         drone.delivery.drone=None
+        waiting_delivery.append(drone.delivery)
     drone.delivery=None
     drone.count_before_take_off = 0
+    time.sleep(1)
+    drone.destinations=[]
+    drone.is_operating = False
+    
     return
         
 def check_weather_thread():
