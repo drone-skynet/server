@@ -28,17 +28,21 @@ def index():
 def pathfinding():
     sname = request.form['sname']
     dname = request.form['dname']
-
-    # 경로 계산 로직
     
-    routes.append(search_route(get_station_by_name(sname), get_station_by_name(dname)))
-    print(f"출발지 : {sname}, 목적지 : {dname}의 경로 계산 완료!")
-    print(routes)
-
-    # 경로 전달
-
-
-    return request.json
+    start_station = get_station_by_name(sname)
+    
+    if not check_drone_at_station(start_station):
+        # 가장 가까운 대기 드론 찾기
+        nearest_drone = find_nearest_waiting_drone(start_station)
+        if nearest_drone:
+            # 드론을 출발지로 이동시키는 경로 추가
+            drone_current_station = get_nearest_station(nearest_drone.latitude, nearest_drone.longitude)
+            routes.append(search_route(drone_current_station, start_station))
+    
+    # 원래 요청된 경로 추가
+    routes.append(search_route(start_station, get_station_by_name(dname)))
+    
+    return jsonify({"status": "success"})
 
 
 @app.route('/send_control_command', methods=['GET'])
@@ -61,6 +65,34 @@ def get_drones():
     print(f"\n{drones}\n")
     return jsonify(drones)
 
+@app.route('/stations/flyable', methods=['GET'])
+def get_all_stations_flyable():
+    stations_status = [{
+        'station_name': station.name,
+        'is_flyable': station.is_flyable
+    } for station in stations]
+    
+    return jsonify(stations_status)
+
+@app.route('/drone/battery', methods=['GET'])
+def get_drone_battery():
+    battery_status = {}
+    
+    # waiting_drones 배터리 상태
+    for drone in waiting_drones:
+        battery_status[f"waiting_drone_{drone.id}"] = {
+            "battery": drone.battery_status,
+            "last_updated": time.strftime('%Y-%m-%d %H:%M:%S')
+        }
+    
+    # mission_drones 배터리 상태    
+    for drone in mission_drones:
+        battery_status[f"mission_drone_{drone.id}"] = {
+            "battery": drone.battery_status,
+            "last_updated": time.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+    return jsonify(battery_status)
 
 # 테스트용 엔드포인트
 @app.route('/test_publish', methods=['GET'])

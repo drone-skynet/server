@@ -43,7 +43,7 @@ limitDistance = 2.0
 
 def get_stations_from_db() :
     conn = mysql.connector.connect(
-        host="172.30.1.73",
+        host="localhost",
         user=db_user,
         password=db_password,
         database="drone" 
@@ -55,7 +55,7 @@ def get_stations_from_db() :
 
         results = cursor.fetchall()
         for row in results:
-            station = Station(row[0],row[1],row[2],row[3],row[4])
+            station = Station(row[0],row[1],row[2],row[3],row[4],row[5],row[6])
             stations.append(station)
     finally:
         cursor.close()
@@ -124,11 +124,6 @@ def get_station_by_name(name) :
             
     return None
     
-<<<<<<< HEAD
-
-
-
-=======
 def attach_intersections_to_stations() :
     for intersection in intersections:
         for station in stations:
@@ -141,7 +136,6 @@ def check_un_attached_station() :
     for station in stations:
         if(station.intersection is None) :
             print(station.name)            
->>>>>>> origin/feat/path_planning_module
     
 
 def initialize_path_planning_module() :
@@ -159,19 +153,13 @@ def initialize_path_planning_module() :
     giving_or_revoking_mission_thread.start()
     controling_drone_thread = threading.Thread(target=control_drone_thread)
     controling_drone_thread.start()
-<<<<<<< HEAD
     # 날씨 체크 쓰레드 시작
     weather_check_thread = threading.Thread(target=check_weather_thread)
     weather_check_thread.start()
-=======
     
-    time.sleep(2)
->>>>>>> origin/feat/path_planning_module
 
     print(f"waiting_drones : {waiting_drones}")
-    print(f"mission_drones : {mission_drones}")
     print("초기화 끝")
-
 
 def give_or_revoke_mission_to_drone_thread():
     while(True) :
@@ -188,7 +176,7 @@ def give_or_revoke_mission_to_drone_thread():
                 # print(f"{drone.id}의 위치:[{drone.latitude}, {drone.longitude}]")
                 if(distance < 0.01): # 10m 이내의 드론에게 배송 명령 전달
                     drone.destinations = route
-                    routes.pop(route_idx) # for each 문인데 삽입 삭제를 시행해도 되나?
+                    routes.remove(route) # for each 문인데 삽입 삭제를 시행해도 되나?
                     mission_drones.append(drone)
                     waiting_drones.remove(drone)
                     print(f"{drone.id}에게 미션 부여")
@@ -200,7 +188,7 @@ def give_or_revoke_mission_to_drone_thread():
                 waiting_drones.append(drone)
                 mission_drones.remove(drone)
                 print(f"{drone.id} 다시 대기 드론으로 전환")
-        # print(f"waiting_drones : {waiting_drones}")
+        print(f"waiting_drones : {waiting_drones}")
         # print(f"mission_drones : {mission_drones}")
                     
 def control_drone_thread() :
@@ -210,26 +198,19 @@ def control_drone_thread() :
         for drone in mission_drones:
             control_a_drone(drone)
 
-<<<<<<< HEAD
-            print(drone.velocity, not drone.is_moving())
-            if(drone.remaining_distance() <= 0.1):
-                print("목적지 변경")
-                drone.stop()
-                drone.prev_station = drone.destination[0]
-                drone.destination.pop(0)
-                drone.move()
-                time.sleep(5)
-            elif(not drone.is_moving()) : # flag 확인 후 움직이는 걸로 변경해야함.
-                print(drone, "안 움직임")
-                drone.move()
-                time.sleep(5)
 
 def check_weather_thread():
     while True:
-        time.sleep(3600)  # 1시간 대기
-        for station in stations:
-            station.check_weather()  # 각 station의 날씨 체크
-=======
+        try:
+            for station in stations:
+                station.check_weather()
+                if not station.is_flyable:
+                    print(f"{station.name}역 날씨 악화로 비행 불가")
+            time.sleep(3600)  # 60분마다 체크
+        except Exception as e:
+            print(f"날씨 체크 중 오류 발생: {e}")
+            time.sleep(60)  # 오류 발생시 1분 후 재시도
+
 def control_a_drone(drone) :
     if(drone.is_operating) : 
         return
@@ -261,4 +242,37 @@ def control_a_drone(drone) :
             if(drone.edge is not None) :
                 print(drone.edge.drones_on_the_edge)
             return
->>>>>>> origin/feat/path_planning_module
+
+#특정 역에 드론이 있는지
+def check_drone_at_station(station):
+    for drone in waiting_drones:
+        distance = haversine([drone.latitude, drone.longitude], [station.latitude, station.longitude])
+        if distance < 0.01:  # 10m 이내에 드론이 있는지 확인
+            return True
+    return False
+
+#특정 역에 가장 가까운 드론 찾기
+def find_nearest_waiting_drone(station):
+    nearest_drone = None
+    min_distance = float('inf')
+    
+    for drone in waiting_drones:
+        distance = haversine([drone.latitude, drone.longitude], [station.latitude, station.longitude])
+        if distance < min_distance:
+            min_distance = distance
+            nearest_drone = drone
+    
+    return nearest_drone
+
+#특정 좌표에 가장 가까운 역 찾기
+def get_nearest_station(lat, lon):
+    nearest_station = None
+    min_distance = float('inf')
+    
+    for station in stations:  # stations는 전체 역 목록이 있는 리스트라고 가정
+        distance = haversine([lat, lon], [station.latitude, station.longitude])
+        if distance < min_distance:
+            min_distance = distance
+            nearest_station = station
+    
+    return nearest_station

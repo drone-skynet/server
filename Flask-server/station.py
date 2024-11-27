@@ -1,26 +1,19 @@
 stations = []
 
 class Station:
-<<<<<<< HEAD
   stations = []
   def __init__(self, id, name, longitude, latitude, capacity,grid_x,grid_y):
-=======
-  def __init__(self, id, name, longitude, latitude, capacity):
->>>>>>> origin/feat/path_planning_module
     self.id = id
     self.name = name
     self.longitude = float(longitude)
     self.latitude = float(latitude)
     self.capacity = capacity
-<<<<<<< HEAD
     self.grid_x=grid_x
     self.grid_y=grid_y
     self.is_flyable = True  # 비행 가능 여부 기본값
 
 
-=======
     self.intersection = None
->>>>>>> origin/feat/path_planning_module
 
   def __repr__(self):
     return self.name

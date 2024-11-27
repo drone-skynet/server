@@ -8,12 +8,12 @@ from pymavlink.dialects.v20 import common as mavlink2
 from pymavlink import mavutil
 
 # MQTT 브로커 정보
-MQTT_BROKER = 'localhost'
+MQTT_BROKER = 'gcs.iotocean.org'
 # PUB_TOPIC = '/Mobius/SJ_Skynet/GCS_Data/TestDrone1/sitl'
 SUB_TOPIC = '/Mobius/SJ_Skynet/Drone_Data/#'
 
 def pub_topic(sys_id) :
-    return f'/Mobius/SJ_Skynet/GCS_Data/TestDrone{251-int(sys_id)}/sitl'
+    return f'/Mobius/SJ_Skynet/GCS_Data/TestDrone{251-int(sys_id)}/orig'
 
 # 기본값 설정
 """
@@ -246,6 +246,7 @@ def publish_control_command(command_data):
     if mav_msg:
         mavlink_msg_bytes = mav_msg.pack(mavutil.mavlink.MAVLink('', 255, 190))    # 파라미터 : 연결객체, MAVLink Version, system_id
         client.publish(pub_topic1, mavlink_msg_bytes)
+
 
         # # 비트 문자열 변환
         # mavlink_message_bits = ''.join(format(byte, '08b') for byte in mavlink_msg_bytes)
