@@ -2,7 +2,7 @@
 
 #import mysql.connector
 from flask import Flask,render_template, jsonify, request
-from drone import get_drone_status
+from drone import get_drone_status, get_mission_drones
 import threading
 import mqtt_client, weather_api
 from dotenv import load_dotenv
@@ -24,6 +24,43 @@ shutdown_event = threading.Event()
 def index():
     return render_template('index.html')
 
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
+
+@app.route('/delivery_info')
+def delivery_info():
+    return render_template('delivery_info.html')
+
+# 임시 현재 배송 정보를 반환하는 엔드포인트
+@app.route('/api/delivery_info', methods=['GET'])
+def api_delivery_info():
+    drone = Delivery.drone
+    drone_info = {
+        "id": drone.id,
+        "battery_status": drone.battery_status,
+        "altitude": drone.altitude - drone.home_alt,
+        "waypoints": drone.destinations,
+        "edge_origin_name": drone.edge.origin.name,
+        "edge_destinations_name": drone.edge.destination.name,
+        "delivery_content": drone.delivery.content,
+        "delivery_detination": drone.delivery.destination,
+        "edt": drone.edt
+    }
+    return jsonify(drone_info)
+
+
+# 임시 현재 운행 중인 드론 상태를 반환하는 엔드포인트
+@app.route('/api/mission_drones', methods=['GET'])
+def get_drones():
+    mission_drones = get_mission_drones()  # 드론 상태를 가져옴
+
+    # 드론 객체를 JSON 직렬화 가능한 형태로 변환
+    mission_drones_data = [drone.to_dict() for drone in mission_drones]
+
+    print(f"\n{mission_drones_data}\n")
+    return jsonify(mission_drones_data)
+
 
 @app.route('/pathfinding', methods=['POST'])
 def pathfinding():
@@ -42,29 +79,6 @@ def pathfinding():
 
 
     return request.json
-
-
-# 임시 현재 드론 상태를 반환하는 엔드포인트
-# @app.route('/mission_drones', methods=['GET'])
-# def get_mission_drones():
-#     drones = mission_drones[:]  # 드론 상태를 가져옴
-#     json = []
-#     for drone in drones:
-#         drone_dict = {
-#          "drone_id" : drone.id,
-#         }
-#         json.append(drone_dict)
-#     print(f"\n{drones}\n")
-#     return jsonify(json)
-
-# # 임시 현재 드론 상태를 반환하는 엔드포인트
-# @app.route('/waiting_drones', methods=['GET'])
-# def get_waiting_drones():
-#     drones = waiting_drones[:]  # 드론 상태를 가져옴
-
-#     print(f"\n{drones}\n")
-#     return jsonify(drones)
-
 
 
 @app.route('/stations/flyable', methods=['GET'])
