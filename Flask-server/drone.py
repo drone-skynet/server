@@ -87,6 +87,7 @@ class Drone:
     self.is_operating = False
     self.take_off_flag = 0
     self.count_before_take_off = 0
+    self.delivery = None
   
   def is_moving(self):
     if abs(self.vx) < 0.05 and abs(self.vy) < 0.05 and abs(self.vz) < 0.05 :
@@ -232,14 +233,16 @@ class Drone:
     }
     mqtt_client.publish_control_command(command)
 
-    time.sleep(20)
+    #time.sleep(20)
+
+    while(self.is_armed):
+      time.sleep(1)
 
     self.take_off_time = None
-    # self.edge = None
-    tmp_edge = self.edge
+    # tmp_edge = self.edge
     self.renew_destination()
-    self.renew_edge()
-    print(tmp_edge.drones_on_the_edge)
+    self.renew_edge() #self.edge 제거
+    #print(tmp_edge.drones_on_the_edge)
     self.is_operating = False
 
     return

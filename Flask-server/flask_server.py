@@ -8,6 +8,7 @@ import mqtt_client, weather_api
 from dotenv import load_dotenv
 import os
 from path_planning import *
+from delivery import Delivery
 
 load_dotenv()
 
@@ -26,14 +27,16 @@ def index():
 
 @app.route('/pathfinding', methods=['POST'])
 def pathfinding():
+    cname = "배송품 이름"# 배송품 이름
+    
     sname = request.form['sname']
     dname = request.form['dname']
 
-    # 경로 계산 로직
-    
-    routes.append(search_route(get_station_by_name(sname), get_station_by_name(dname)))
-    print(f"출발지 : {sname}, 목적지 : {dname}의 경로 계산 완료!")
-    print(routes)
+    new_delivery = Delivery(cname, sname, dname)
+    waiting_delivery.append(new_delivery)
+    # 경로 계산 로직 
+    #routes.append(search_route(get_station_by_name(sname), get_station_by_name(dname)))
+    # print(f"출발지 : {sname}, 목적지 : {dname}의 경로 계산 완료!")
 
     # 경로 전달
 
