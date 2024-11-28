@@ -218,6 +218,7 @@ def give_or_revoke_mission_to_drone_thread():
         for idx, delivery in enumerate(reversed(waiting_delivery)):
             if(delivery.is_reserved):
                 continue
+            start_station = get_station_by_name(delivery.origin)
             nearest_drone = find_nearest_waiting_drone(start_station)
             if(nearest_drone is None): #대기중인 드론조차 없음
                 continue

@@ -12,10 +12,11 @@ function createDroneCard(drone) {
     moving_status = "stopped";
     moving_status_kr = "정지";
   } else if (Math.sqrt(drone.vx * drone.vx + drone.vy * drone.vy) < 0.1) {
-    if (drone.vz > 0) {
+    // console.log(drone.vz);
+    if (Number(drone.vz) < 0) {
       moving_status = "takeoff";
       moving_status_kr = "이륙";
-    } else if (drone.vz < 0) {
+    } else if (Number(drone.vz) > 0) {
       moving_status = "landing";
       moving_status_kr = "착륙";
     }

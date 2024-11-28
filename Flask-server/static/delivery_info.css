@@ -1,0 +1,173 @@
+/* 노란색 텍스트 스타일 */
+.yellow-text {
+  color: #ffd700 !important; /* 노란색 설정 */
+}
+
+/* 빨간색 텍스트 스타일 */
+.red-text {
+  color: #ff0000; /* 빨간색 추가 (최종 목적지) */
+}
+
+/* 굵은 텍스트 스타일 */
+.bold-text {
+  font-weight: bold;
+  color: #000; /* 텍스트 기본 색상 검은색 */
+}
+
+/* 주황색 텍스트 스타일 */
+.orange-text {
+  color: #ffa500;
+}
+
+/* 전역 스타일 */
+body {
+  font-family: "Arial", sans-serif;
+  margin: 0;
+  padding: 0;
+  background-image: url("../static/assets/box_image.jpg"); /* 배경 이미지 */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+}
+
+/* 헤더 */
+header {
+  width: 100%;
+  background-color: #4caf50;
+  padding: 20px 0;
+  text-align: center;
+  color: #ffffff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-title {
+  font-size: 3em;
+  margin: 0;
+}
+
+/* 대시보드 컨테이너 */
+.dashboard-container {
+  width: 90%;
+  max-width: 1200px;
+  padding: 30px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+  text-align: center;
+}
+
+/* 경로 컨테이너 */
+.route-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 40px 0;
+}
+
+/* 출발지, 다음 목적지 박스 */
+.location-box {
+  flex: 1;
+  max-width: 300px;
+  padding: 20px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.start-box h2 {
+  color: #4caf50; /* 출발지 제목 초록색 */
+}
+
+.destination-box h2 {
+  color: #ff5722; /* 다음 목적지 제목 빨간색 */
+}
+
+/* 이동 이미지 */
+.route-image {
+  flex: 1.5;
+  text-align: center;
+}
+
+.route-image img {
+  max-width: 500px;
+  height: auto;
+  opacity: 0.9;
+}
+
+/* 최종 목적지 스타일 */
+.final-destination {
+  margin: 20px 0;
+  padding: 20px;
+  background: #ffecec;
+  border: 1px solid #ff0000;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.final-destination h2 {
+  font-size: 1.5em;
+  margin-bottom: 10px;
+}
+
+.final-destination p {
+  font-size: 1.2em;
+}
+
+/* 정보 섹션 */
+.info-section {
+  margin: 20px 0;
+}
+
+.info-box {
+  width: 80%;
+  max-width: 600px;
+  margin: 10px auto;
+  padding: 20px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.info-box h2 {
+  font-size: 1.5em;
+  color: #ffa500;
+  margin-bottom: 10px;
+}
+
+.info-box p {
+  font-size: 1.2em;
+}
+
+/* 푸터 */
+footer {
+  margin-top: 30px;
+  text-align: center;
+  width: 100%;
+}
+
+.back-link {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 15px 30px;
+  background: #4caf50;
+  color: #ffffff;
+  font-size: 1.2em;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: background 0.3s ease;
+}
+
+.back-link:hover {
+  background: #45a049;
+}
