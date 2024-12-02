@@ -72,8 +72,8 @@ def get_edges_by_stations() :
     n = len(stations)
     for i in range(n):
         for j in range(i+1,n):
-            edges.append(Edge(stations[i], stations[j], 60))
-            edges.append(Edge(stations[j], stations[i], 80))
+            edges.append(Edge(stations[i], stations[j], 90))
+            edges.append(Edge(stations[j], stations[i], 110))
             if(edges[-1].weight > limitDistance) : 
                 edges.pop()
                 edges.pop()
@@ -167,7 +167,7 @@ def initialize_path_planning_module() :
 
     # 날씨 체크 쓰레드 시작
     weather_check_thread = threading.Thread(target=check_weather_thread)
-    # weather_check_thread.start()
+    weather_check_thread.start()
     
     time.sleep(2)
 
@@ -175,7 +175,7 @@ def initialize_path_planning_module() :
     print(f"mission_drones : {mission_drones}")
     print("초기화 끝")
 
-BATTERY_SPEED = 100/300*3
+BATTERY_SPEED = 0#100/900*3
 def give_or_revoke_mission_to_drone_thread():
     while(True) :
         time.sleep(3)
@@ -224,6 +224,8 @@ def give_or_revoke_mission_to_drone_thread():
                 continue
             retrive_route = search_route(get_nearest_station(nearest_drone.latitude, nearest_drone.longitude) ,get_station_by_name(delivery.origin))
             #날씨 체크 및 배터리 체크
+            if(len(retrive_route)<2):
+                continue
             if(not retrive_route[0].is_flyable or not retrive_route[1].is_flyable or drone.battery_status <= LOW_BATTERY_LEVEL):
                 print("날씨 이슈")
                 continue
@@ -269,6 +271,8 @@ def control_drone_thread() :
                     return_mission_of_unarmed_drone(drone)
             else:
                 drone.count_before_take_off = 0
+                #시동이 걸린 미션 드론들에 대해서 경로 그리기(갱신)
+                drone.draw_route()
             
 
 def control_a_drone(drone) :
@@ -312,13 +316,24 @@ def control_a_drone(drone) :
                 print("목적지 변경")
                 
                 #날씨 및 배터리 체크
-                if(not drone.destinations[0].is_flyable or not drone.prev_station.is_flyable or drone.battery_status <= LOW_BATTERY_LEVEL):
+                if(not drone.prev_station.is_flyable or drone.battery_status <= LOW_BATTERY_LEVEL):
                     #착륙
                     landing_thread = threading.Thread(target=drone.land)
                     landing_thread.start()
                     #착륙 끝나면 물품 반환
                     return_mission_thread = threading.Thread(target=return_mission_of_unarmed_drone, args=(drone,))
                     return_mission_thread.start()
+                elif(not drone.destinations[0].is_flyable): #경로 우회
+                    drone.destinations = search_route(drone.prev_station, drone.destinations[-1])
+                    #다시 찾았음에도 도저히 길이 없음.
+                    if(not drone.destinations[0].is_flyable):
+                        #착륙
+                        landing_thread = threading.Thread(target=drone.land)
+                        landing_thread.start()
+                        #착륙 끝나면 물품 반환
+                        return_mission_thread = threading.Thread(target=return_mission_of_unarmed_drone, args=(drone,))
+                        return_mission_thread.start()
+
 
             else :
                 drone.stop()
@@ -348,6 +363,8 @@ def return_mission_of_unarmed_drone(drone):
     drone.count_before_take_off = 0
     time.sleep(1)
     drone.destinations=[]
+    #경로 그리기
+    drone.draw_route()
     drone.is_operating = False
     
     return
@@ -357,6 +374,12 @@ def check_weather_thread():
         try:
             for station in stations:
                 station.check_weather()
+            #비오는 역에 연결된 간선 전부 가중치 무한대로, 경로 우회
+            for edge in edges:
+                if(edge.origin.is_flyable and edge.destination.is_flyable):
+                    edge.weight = edge.distance
+                elif((not edge.origin.is_flyable) or (not edge.destination.is_flyable)):
+                    edge.weight = float('inf')            
             time.sleep(3600)  # 60분마다 체크
         except Exception as e:
             time.sleep(60)  # 오류 발생시 1분 후 재시도

@@ -262,6 +262,18 @@ def publish_control_command(command_data):
     else:
         print(f"\nUnknown command: {command}")
 
+def publish_destinations_to_draw(sys_id, waypoints):
+    topic = "Mobius/SJ_Skynet/Path_Planing_Server_Data/waypoints"
+    command = {
+        "command": "destinations",
+        "drone_name": f"TestDrone{251-int(sys_id)}",
+        "sys_id" : sys_id,
+        "waypoints" : waypoints,
+    }
+    client.publish(topic, json.dumps(command))
+    print(json.dumps(command))
+
+
 
 #MQTT 클라이언트를 시작
 def start_mqtt_client():

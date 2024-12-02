@@ -271,6 +271,8 @@ class Drone:
     self.renew_destination()
     self.renew_edge() #self.edge 제거
     #print(tmp_edge.drones_on_the_edge)
+    #경로 그리기
+    self.draw_route()
     self.is_operating = False
 
     return
@@ -303,8 +305,24 @@ class Drone:
     self.renew_edge()
     self.is_operating = False
 
-    
-    
+  def draw_route(self):
+    points_of_destination = []
+    prev_station = self.prev_station
+    if(len(self.destinations) > 0):
+      points_of_destination.append({
+       "latitude" : self.latitude,
+       "longitude" : self.longitude,
+       "altitude" : self.altitude
+      })
+    for destination in self.destinations:
+      altitude = find_edge_by_point(edges, prev_station, destination).altitude
+      points_of_destination.append({
+       "latitude" : destination.latitude,
+       "longitude" : destination.longitude,
+       "altitude" : altitude
+      })
+      prev_station = destination
+    mqtt_client.publish_destinations_to_draw(self.id, points_of_destination)
 
   
   def is_landed(self) :

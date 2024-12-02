@@ -93,7 +93,7 @@ def check_collision_in_edge(edge) :
     if(i>=len(edge.drones_on_the_edge)) :
       break
     distance = find_distance_between_2_drones(edge.drones_on_the_edge[i], edge.drones_on_the_edge[i-1])
-    if distance < 0.04 :
+    if distance < 0.02 :
       edge.drones_on_the_edge[i].go_flag = 0
     else :
       edge.drones_on_the_edge[i].go_flag *= 1

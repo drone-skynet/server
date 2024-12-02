@@ -10,6 +10,7 @@ class Edge:
     self.altitude = altitude
     self.drones_on_the_edge = []
     self.intersection = None
+    self.distance = self.weight
   def __repr__(self):
     return (f"edge(origin={self.origin.name}, destination={self.destination.name}, "
             f"weight={self.weight})")
