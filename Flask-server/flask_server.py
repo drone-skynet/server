@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import os
 from path_planning import *
 from delivery import Delivery
+from ml_model import load_model
 
 load_dotenv()
 
@@ -17,6 +18,8 @@ db_user = os.getenv('DB_USER')
 db_password = os.getenv('DB_PASSWORD')
 
 app = Flask(__name__)
+time_prediction_model = load_model("./delivery_time_prediction_model.pkl")
+
 
 # 종료 이벤트
 shutdown_event = threading.Event()
@@ -57,7 +60,8 @@ def api_delivery_info():
         "content": searched_delivery.content,
         "edge_origin_name": searched_delivery.drone.edge.origin.name if searched_delivery.drone is not None else searched_delivery.origin,
         "edge_destination_name": searched_delivery.drone.edge.destination.name if searched_delivery.drone is not None else searched_delivery.origin,
-        "destination": searched_delivery.destination
+        "destination": searched_delivery.destination,
+        "edt": searched_delivery.drone.get_edt(time_prediction_model)
     }
     
     
@@ -91,14 +95,14 @@ def get_drones():
     for drone in drones :
         rslt.append({
         "id": drone.id,
-        "battery_status": drone.battery_status,
+        "battery_status": round(float(drone.battery_status), 2),
         "altitude": drone.altitude,
         # "waypoints": drone.destinations,
         "edge_origin_name": drone.edge.origin.name if drone.edge is not None else None,
         "edge_destination_name": drone.edge.destination.name if drone.edge is not None else None,
         "delivery_content": drone.delivery.content if drone.delivery is not None else None,
         "delivery_destination": drone.destinations[-1].name if len(drone.destinations) > 0 else None,
-        # "edt": drone.edt
+        "edt": drone.get_edt(time_prediction_model),
         "vx": drone.vx,
         "vy": drone.vy,
         "vz": drone.vz

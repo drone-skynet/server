@@ -42,9 +42,11 @@ def check_collision_of_one_intersection(intersection): #겹치는 직선 제거 
             
             # 반대 방향이면 이미 교점을 지난 것이므로 다음 드론 확인
             distance_to_intersection = haversine([drone.latitude, drone.longitude], intersection_pos)
-            if dot_product > 0 or (dot_product <=0 and distance_to_intersection < 0.020): # 10m 정도는 지나야 다음 차례 넘김 착륙 때문 
+            if dot_product > 0: # 10m 정도는 지나야 다음 차례 넘김 착륙 때문 
               leading_drones.append(drone)
               break  # 해당 간선의 leading 드론을 찾았으므로 다음 간선으로
+            if(dot_product <=0 and distance_to_intersection < 0.020):
+               leading_drones.append(drone)
             
             # 교점까지의 거리가 다음 목적지까지의 거리보다 크면 아직 교점을 지나지 않은 것
                 
@@ -58,8 +60,9 @@ def check_collision_of_one_intersection(intersection): #겹치는 직선 제거 
         if distance_to_intersection < 0.1:
             filtered_drones.append(drone)
     leading_drones = filtered_drones
+    leading_drones.sort(key=lambda drone: drone.id)
     #drone_queue에 복사 (이륙 스케쥴링을 위함)
-    intersection.drone_queue = leading_drones[:]
+    intersection.drone_queue = leading_drones
     # 교점과 가장 가까운 드론 찾기
     if len(leading_drones) > 0:
       closest_drone = min(leading_drones, 

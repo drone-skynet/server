@@ -2,6 +2,8 @@ from utils import haversine, find_edge_by_point
 from edge import edges
 import time
 import mqtt_client
+from ml_model import predict_delivery_time
+import math
 
 drone_statuses = {}
 waiting_drones = [] 
@@ -24,7 +26,7 @@ def update_drone_status(drone):
         "mission_status": drone.mission_status
     }
     """
-    if(drone not in waiting_drones and drone not in mission_drones and not drone.is_armed) :
+    if(drone not in waiting_drones and drone not in mission_drones and drone.is_armed is not None and not drone.is_armed) :
       waiting_drones.append(drone)
       drone.battery_status = 100
       return
@@ -199,7 +201,7 @@ class Drone:
       self.edge = None
       self.is_operating = False
       return
-    
+
 
     # 드론 GUIDED 모드 설정
     command = {
@@ -236,7 +238,8 @@ class Drone:
     time.sleep(2)
     while(not self.is_moving()):
       time.sleep(1)
-
+    #이륙 완료 후 경로 그리기
+    self.draw_route()
     
     self.is_operating = False
     print("드론", self.id, "이륙")
@@ -264,6 +267,8 @@ class Drone:
       # print(self.id, "1초 지남")
       after_alt = self.altitude
       if abs(before_alt - after_alt) < 0.1 and not self.is_armed:
+        break
+      if not self.is_armed:
         break
 
     self.take_off_time = None
@@ -312,17 +317,57 @@ class Drone:
       points_of_destination.append({
        "latitude" : self.latitude,
        "longitude" : self.longitude,
-       "altitude" : self.altitude
+       "altitude" : 100#self.altitude
       })
     for destination in self.destinations:
-      altitude = find_edge_by_point(edges, prev_station, destination).altitude
+      #altitude = find_edge_by_point(edges, prev_station, destination).altitude
       points_of_destination.append({
        "latitude" : destination.latitude,
        "longitude" : destination.longitude,
-       "altitude" : altitude
+       "altitude" : 100#altitude
       })
-      prev_station = destination
+      #prev_station = destination
+    mqtt_client.publish_destinations_to_draw(self.id, [])
     mqtt_client.publish_destinations_to_draw(self.id, points_of_destination)
+
+  @staticmethod
+  def calculate_direction(coord1, coord2):
+    # 위도, 경도를 라디안으로 변환
+    lat1, lon1 = coord1
+    lat2, lon2 = coord2
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    
+    # 경도 차이
+    delta_lon = lon2 - lon1
+
+    # 방위각 계산
+    x = math.sin(delta_lon) * math.cos(lat2)
+    y = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(delta_lon)
+    bearing = math.atan2(x, y)
+    
+    # 라디안을 도(degree)로 변환
+    bearing = math.degrees(bearing)
+    
+    # 0~360도로 조정
+    bearing = (bearing + 360) % 360
+    return bearing
+  
+
+  def get_edt(self, model):
+    destinations = self.destinations[:]
+    if(len(destinations) == 0):
+      return 0
+    first_distance = haversine([self.latitude, self.longitude], [destinations[0].latitude, destinations[0].longitude])
+    drone_direction = Drone.calculate_direction([self.latitude, self.longitude], [destinations[0].latitude, destinations[0].longitude])
+    total_time = predict_delivery_time(model, first_distance, destinations[0].wind_speed, destinations[0].wind_direction, drone_direction)
+    for idx, destination in enumerate(destinations):
+      if(idx == len(destinations)-1):
+        break
+      edge = find_edge_by_point(edges, destinations[idx], destinations[idx+1])
+      drone_direction = Drone.calculate_direction([destinations[idx].latitude, destinations[idx].longitude], [destinations[idx+1].latitude, destinations[idx+1].longitude])
+      total_time += predict_delivery_time(model, edge.distance, destinations[idx+1].wind_speed, destinations[idx+1].wind_direction, drone_direction)
+
+    return int(total_time)
 
   
   def is_landed(self) :

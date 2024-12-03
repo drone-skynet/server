@@ -44,7 +44,9 @@ function createDroneCard(drone) {
       <div class="drone-info"><strong>배송 물품:</strong> ${
         drone.delivery_content || "배송 물품 없음"
       }</div>
-      <div class="drone-info eta"><strong>예상 소요 시간:</strong> 10분</div>
+      <div class="drone-info eta"><strong>예상 소요 시간:</strong> ${
+        drone.edt
+      }</div>
       <div class="status-indicator ${moving_status}">${moving_status_kr}</div>
   `;
 

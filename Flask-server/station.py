@@ -10,8 +10,11 @@ class Station:
     self.capacity = capacity
     self.grid_x=grid_x
     self.grid_y=grid_y
-    self.is_flyable = True  # 비행 가능 여부 기본값
     self.intersection = None
+    
+    self.is_flyable = True  # 비행 가능 여부 기본값
+    self.wind_speed = 0
+    self.wind_direction = 0
 
   def __repr__(self):
     return self.name
@@ -25,5 +28,7 @@ class Station:
   def check_weather(self):
     """현재 날씨 상태를 확인하고 비행 가능 여부를 업데이트"""
     from weather_api import get_station_weather
-    is_raining = get_station_weather(self)  # self를 전달
-    self.is_flyable = not is_raining
+    weather_info = get_station_weather(self)  # self를 전달
+    self.is_flyable = not weather_info['is_raining']
+    self.wind_direction = weather_info['wind_direction']
+    self.wind_speed = weather_info['wind_speed']

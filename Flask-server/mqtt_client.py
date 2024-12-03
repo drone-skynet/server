@@ -263,7 +263,7 @@ def publish_control_command(command_data):
         print(f"\nUnknown command: {command}")
 
 def publish_destinations_to_draw(sys_id, waypoints):
-    topic = "Mobius/SJ_Skynet/Path_Planing_Server_Data/waypoints"
+    topic = "/Mobius/SJ_Skynet/Path_Planing_Server_Data/waypoints"
     command = {
         "command": "destinations",
         "drone_name": f"TestDrone{251-int(sys_id)}",
@@ -271,7 +271,7 @@ def publish_destinations_to_draw(sys_id, waypoints):
         "waypoints" : waypoints,
     }
     client.publish(topic, json.dumps(command))
-    print(json.dumps(command))
+    #print(json.dumps(command))
 
 
 

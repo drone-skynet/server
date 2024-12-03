@@ -168,6 +168,9 @@ def initialize_path_planning_module() :
     # 날씨 체크 쓰레드 시작
     weather_check_thread = threading.Thread(target=check_weather_thread)
     weather_check_thread.start()
+    #경로 그리기 쓰레드
+    route_drawing_thread = threading.Thread(target=draw_routes_thread)
+    route_drawing_thread.start()
     
     time.sleep(2)
 
@@ -175,7 +178,7 @@ def initialize_path_planning_module() :
     print(f"mission_drones : {mission_drones}")
     print("초기화 끝")
 
-BATTERY_SPEED = 0#100/900*3
+BATTERY_SPEED = 100/900*3
 def give_or_revoke_mission_to_drone_thread():
     while(True) :
         time.sleep(3)
@@ -272,7 +275,7 @@ def control_drone_thread() :
             else:
                 drone.count_before_take_off = 0
                 #시동이 걸린 미션 드론들에 대해서 경로 그리기(갱신)
-                drone.draw_route()
+                
             
 
 def control_a_drone(drone) :
@@ -289,8 +292,10 @@ def control_a_drone(drone) :
             return_mission_of_unarmed_drone(drone)
             return
         print(drone, "착륙 상태, 배송 임무 하달, 이륙")
+
         taking_off_thread = threading.Thread(target=drone.take_off)
         taking_off_thread.start()
+        time.sleep(0.1)
         return
     if(drone.is_armed) :
         if(len(drone.destinations) == 1 and not drone.is_moving() and drone.go_flag == 1 and drone.remaining_distance() <= 0.001) :
@@ -352,16 +357,16 @@ def return_mission_of_unarmed_drone(drone):
     while(drone.is_armed) :
         time.sleep(1)
         drone.is_operating = True
-    
+    time.sleep(1.5)
     if(drone.delivery is not None) : 
-        print(f"{drone.id}가 물품 반환 : {drone.delivery}")
         if(drone.prev_station is not None):
             drone.delivery.origin = drone.prev_station.name
         drone.delivery.drone=None
         waiting_delivery.append(drone.delivery)
+        print(f"{drone.id}가 물품 반환 : {drone.delivery}")
     drone.delivery=None
     drone.count_before_take_off = 0
-    time.sleep(1)
+    # time.sleep(1)
     drone.destinations=[]
     #경로 그리기
     drone.draw_route()
@@ -409,3 +414,11 @@ def get_nearest_station(lat, lon):
             nearest_station = station
     
     return nearest_station
+
+def draw_routes_thread():
+    while(True):
+        time.sleep(5)
+        drones = mission_drones[:]
+        for drone in drones :
+            time.sleep(1)
+            drone.draw_route()
