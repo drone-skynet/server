@@ -178,7 +178,7 @@ def initialize_path_planning_module() :
     print(f"mission_drones : {mission_drones}")
     print("초기화 끝")
 
-BATTERY_SPEED = 100/900*3
+BATTERY_SPEED = 100/900*3 # 비행 시간 15분  #100/500*3 
 def give_or_revoke_mission_to_drone_thread():
     while(True) :
         time.sleep(3)
@@ -193,6 +193,7 @@ def give_or_revoke_mission_to_drone_thread():
                 #     wating_delivery.remove(delivery)
                 #     continue
                 route = search_route(get_station_by_name(delivery.origin), get_station_by_name(delivery.destination))
+                print(route)
                 if(route is None) :
                     waiting_delivery.remove(delivery)
                     continue
@@ -249,9 +250,12 @@ def give_or_revoke_mission_to_drone_thread():
         # print(f"waiting_drones : {waiting_drones}")
         # print(f"mission_drones : {mission_drones}")
         
+        # 배터리 회복
+        
         for drone in waiting_drones:
             drone.battery_status += BATTERY_SPEED
             drone.battery_status = 100 if drone.battery_status > 100 else drone.battery_status
+        
         for drone in mission_drones:
             if(not drone.is_armed) :
                 drone.battery_status += BATTERY_SPEED
@@ -308,6 +312,31 @@ def control_a_drone(drone) :
             return
         if(len(drone.destinations) > 0 and drone.remaining_distance() <= 0.001): # 여기서 고도 변경 필요. move_to()로 고도 변경
             if(len(drone.destinations) != 1) :
+                #배터리 체크
+                if(not drone.prev_station.is_flyable or drone.battery_status <= LOW_BATTERY_LEVEL):
+                    #착륙
+                    ready_to_emerge_landing(drone)
+                    print(drone.destinations)
+                    landing_thread = threading.Thread(target=drone.land)
+                    landing_thread.start()
+                    #착륙 끝나면 물품 반환
+                    return_mission_thread = threading.Thread(target=return_mission_of_unarmed_drone, args=(drone,))
+                    return_mission_thread.start()
+                    return
+                #날씨 체크
+                elif(not drone.destinations[0].is_flyable): #경로 우회
+                    drone.destinations = search_route(drone.prev_station, drone.destinations[-1])
+                    #다시 찾았음에도 도저히 길이 없음. 간선 교체 전이므로
+                    if(not drone.destinations[1].is_flyable):
+                        #착륙
+                        ready_to_emerge_landing(drone)
+                        landing_thread = threading.Thread(target=drone.land)
+                        landing_thread.start()
+                        #착륙 끝나면 물품 반환
+                        return_mission_thread = threading.Thread(target=return_mission_of_unarmed_drone, args=(drone,))
+                        return_mission_thread.start()
+                        return
+
                 #다음 간선의 높이와 비교
                 next_edge_altitude = find_edge_by_point(edges, drone.destinations[0], drone.destinations[1]).altitude
                 if(abs(next_edge_altitude - drone.altitude) > 10) :
@@ -319,26 +348,6 @@ def control_a_drone(drone) :
                     drone.renew_edge()
                 
                 print("목적지 변경")
-                
-                #날씨 및 배터리 체크
-                if(not drone.prev_station.is_flyable or drone.battery_status <= LOW_BATTERY_LEVEL):
-                    #착륙
-                    landing_thread = threading.Thread(target=drone.land)
-                    landing_thread.start()
-                    #착륙 끝나면 물품 반환
-                    return_mission_thread = threading.Thread(target=return_mission_of_unarmed_drone, args=(drone,))
-                    return_mission_thread.start()
-                elif(not drone.destinations[0].is_flyable): #경로 우회
-                    drone.destinations = search_route(drone.prev_station, drone.destinations[-1])
-                    #다시 찾았음에도 도저히 길이 없음.
-                    if(not drone.destinations[0].is_flyable):
-                        #착륙
-                        landing_thread = threading.Thread(target=drone.land)
-                        landing_thread.start()
-                        #착륙 끝나면 물품 반환
-                        return_mission_thread = threading.Thread(target=return_mission_of_unarmed_drone, args=(drone,))
-                        return_mission_thread.start()
-
 
             else :
                 drone.stop()
@@ -379,12 +388,18 @@ def check_weather_thread():
         try:
             for station in stations:
                 station.check_weather()
+                #if(station.name == "건대입구" or station.name == "어린이대공원(세종대)"):
+                #    station.is_flyable = False
             #비오는 역에 연결된 간선 전부 가중치 무한대로, 경로 우회
             for edge in edges:
                 if(edge.origin.is_flyable and edge.destination.is_flyable):
                     edge.weight = edge.distance
                 elif((not edge.origin.is_flyable) or (not edge.destination.is_flyable)):
-                    edge.weight = float('inf')            
+                    edge.weight = float('inf')  
+            st = time.time()
+            make_graph()
+            rt = time.time()
+            print("make_graph 시간:",  rt - st)
             time.sleep(3600)  # 60분마다 체크
         except Exception as e:
             time.sleep(60)  # 오류 발생시 1분 후 재시도
@@ -422,3 +437,12 @@ def draw_routes_thread():
         for drone in drones :
             time.sleep(1)
             drone.draw_route()
+
+def ready_to_emerge_landing(drone):
+    if(len(drone.destinations) < 2):
+        print("일반 착륙")
+        return
+    next_edge = find_edge_by_point(edges, drone.destinations[0], drone.destinations[1])
+    if(drone in next_edge.drones_on_the_edge):
+        next_edge.drones_on_the_edge.remove(drone)
+    drone.destinations = [drone.destinations[0]]

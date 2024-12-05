@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ).textContent = data.content || "정보 없음";
         document.querySelector(
           ".delivery-info-container .bold-text"
-        ).textContent = data.edt || "정보 없음";
+        ).textContent = String(data.edt) + "분" || "정보 없음";
       } else {
         console.error("Delivery data is empty or not found");
       }

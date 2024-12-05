@@ -268,8 +268,8 @@ class Drone:
       after_alt = self.altitude
       if abs(before_alt - after_alt) < 0.1 and not self.is_armed:
         break
-      if not self.is_armed:
-        break
+      # if not self.is_armed:
+      #   break
 
     self.take_off_time = None
     # tmp_edge = self.edge

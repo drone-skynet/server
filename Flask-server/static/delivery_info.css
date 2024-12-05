@@ -191,3 +191,7 @@ footer {
 .back-link:hover {
   background: #45a049;
 }
+
+.larger-text {
+  font-size: 31px !important;
+}
